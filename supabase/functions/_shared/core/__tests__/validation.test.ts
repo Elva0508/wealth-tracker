@@ -25,22 +25,34 @@ describe('金額輸入', () => {
 
 describe('預設名稱', () => {
   it('依分類編號，跳過已使用的名稱', () => {
-    expect(defaultItemName('cash_bank', [])).toBe('銀行帳戶 1');
-    expect(defaultItemName('cash_bank', ['銀行帳戶 1', '銀行帳戶 3'])).toBe('銀行帳戶 2');
+    expect(defaultItemName('bank', [])).toBe('銀行帳戶 1');
+    expect(defaultItemName('bank', ['銀行帳戶 1', '銀行帳戶 3'])).toBe('銀行帳戶 2');
     expect(defaultItemName('loan', ['銀行帳戶 1'])).toBe('貸款 1');
   });
 });
 
 describe('整份表單', () => {
   it('名稱留空時補上預設名稱，幣別轉大寫', () => {
-    const result = validateItemInput(
-      { category: 'cash_bank', name: '  ', currency: 'usd', amount: '1,000', notes: '' },
-      ['銀行帳戶 1'],
-    );
+    const result = validateItemInput({ category: 'bank', name: '  ', currency: 'usd', amount: '1,000', notes: '' }, [
+      '銀行帳戶 1',
+    ]);
     expect(result).toEqual({
       ok: true,
-      value: { category: 'cash_bank', name: '銀行帳戶 2', currency: 'USD', amount: '1000', notes: null },
+      value: { category: 'bank', subtype: null, name: '銀行帳戶 2', currency: 'USD', amount: '1000', notes: null },
     });
+  });
+
+  it('有細項時預設名稱用細項，細項必須屬於這個分類', () => {
+    const ok = validateItemInput(
+      { category: 'ewallet', subtype: 'jkopay', name: '', currency: 'TWD', amount: '100', notes: '' },
+      [],
+    );
+    expect(ok.ok && ok.value.name).toBe('街口支付 1');
+    const bad = validateItemInput(
+      { category: 'bank', subtype: 'jkopay', name: '', currency: 'TWD', amount: '100', notes: '' },
+      [],
+    );
+    expect(bad.ok).toBe(false);
   });
 
   it('同時回報多個錯誤', () => {

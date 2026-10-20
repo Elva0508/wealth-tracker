@@ -4,18 +4,32 @@ import { item, rates } from './helpers.ts';
 
 describe('匯出', () => {
   const items = [
-    item('cash_bank', '1000', { currency: 'USD', name: '美元帳戶', notes: '含 "引號", 逗號' }),
-    item('loan', '50000', { name: '信貸' }),
-    item('other_asset', '20000', { name: '舊車', status: 'archived' }),
+    item('bank', '1000', { currency: 'USD', name: '美元帳戶', notes: '含 "引號", 逗號' }),
+    item('loan', '50000', { name: '信貸', subtype: 'personal' }),
+    item('fixed_other', '20000', { name: '舊車', status: 'archived' }),
   ];
 
   it('規格案例 14：包含所有項目與欄位，不受隱藏金額影響', () => {
     const table = itemsExportTable(items, rates({ USD: '32' }));
-    expect(table.header).toEqual(['類型', '分類', '名稱', '幣別', '原幣金額', '匯率', 'TWD 估值', '狀態', '備註']);
+    expect(table.header).toEqual([
+      '類型',
+      '大類',
+      '分類',
+      '細項',
+      '名稱',
+      '幣別',
+      '原幣金額',
+      '匯率',
+      'TWD 估值',
+      '狀態',
+      '備註',
+    ]);
     expect(table.rows).toHaveLength(3);
     expect(table.rows[0]).toEqual([
       '資產',
-      '現金與銀行存款',
+      '流動資金',
+      '銀行帳戶',
+      '',
       '美元帳戶',
       'USD',
       { number: '1000.0000' },
@@ -24,19 +38,20 @@ describe('匯出', () => {
       '使用中',
       '含 "引號", 逗號',
     ]);
-    expect(table.rows[2][7]).toBe('已封存');
+    expect(table.rows[1].slice(0, 4)).toEqual(['負債', '負債', '貸款', '信用貸款']);
+    expect(table.rows[2][9]).toBe('已封存');
   });
 
   it('CSV 有 BOM，並正確處理逗號與引號', () => {
     const csv = toCsv(itemsExportTable(items, rates({ USD: '32' })));
-    expect(csv.startsWith('﻿類型,分類')).toBe(true);
+    expect(csv.startsWith('﻿類型,大類,分類,細項')).toBe(true);
     expect(csv).toContain('"含 ""引號"", 逗號"');
   });
 
   it('缺少匯率時標示「無匯率」，估值留空', () => {
-    const table = itemsExportTable([item('cash_bank', '5', { currency: 'CHF' })], rates({}));
-    expect(table.rows[0][5]).toBe('無匯率');
-    expect(table.rows[0][6]).toBeNull();
+    const table = itemsExportTable([item('bank', '5', { currency: 'CHF' })], rates({}));
+    expect(table.rows[0][7]).toBe('無匯率');
+    expect(table.rows[0][8]).toBeNull();
   });
 
   it('xlsx 是合法的 zip 檔', () => {
@@ -57,7 +72,7 @@ describe('備份檢查', () => {
         {
           id: '11111111-1111-4111-8111-111111111111',
           kind: 'asset',
-          category: 'cash_bank',
+          category: 'bank',
           name: '薪轉',
           currency: 'TWD',
           amount: '100000',
@@ -87,7 +102,7 @@ describe('備份檢查', () => {
         {
           snapshot_id: '22222222-2222-4222-8222-222222222222',
           item_id: '11111111-1111-4111-8111-111111111111',
-          category: 'cash_bank',
+          category: 'bank',
           currency: 'TWD',
           amount: '100000',
           fx_rate: '1',
@@ -120,7 +135,7 @@ describe('備份檢查', () => {
   it('資料有錯時列出原因', () => {
     const bad = valid();
     bad.data.items[0].amount = '-1';
-    bad.data.items[0].category = 'crypto';
+    bad.data.items[0].category = 'spaceship';
     bad.data.snapshotLines[0].snapshot_id = '33333333-3333-4333-8333-333333333333';
     const result = validateBackup(bad);
     expect(result.ok).toBe(false);
@@ -181,5 +196,17 @@ describe('備份檢查', () => {
     expect(result.ok).toBe(false);
     if (!result.ok)
       expect(result.errors).toEqual(['第 1 筆貸款：找不到對應的項目', '第 1 筆還款方式紀錄：資料格式錯誤']);
+  });
+
+  it('舊版備份的分類代碼換成新分類', () => {
+    const old = valid();
+    old.data.items[0].category = 'cash_bank';
+    old.data.snapshotLines[0].category = 'cash_bank';
+    const result = validateBackup(old);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.backup.data.items[0].category).toBe('bank');
+      expect(result.backup.data.snapshotLines[0].category).toBe('bank');
+    }
   });
 });

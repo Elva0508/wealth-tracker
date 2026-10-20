@@ -6,17 +6,21 @@
  * 還原會「覆蓋」目前資料，所以檔案一定要先通過這裡的檢查，再顯示預覽讓使用者確認。
  */
 import { isDecimalString } from './decimal.ts';
-import { isCategory } from './balance.ts';
+import { LEGACY_CATEGORIES, isCategory } from './balance.ts';
 import { REPAYMENT_MODES, isIsoDate } from './loan.ts';
 
 export const BACKUP_FORMAT = 'personal-wealth-tracker-backup';
-/** 2：加入貸款資料。版本 1 的備份仍可還原（視為沒有貸款） */
-export const BACKUP_VERSION = 2;
+/**
+ * 2：加入貸款資料。3：分類改成大類／分類／細項，項目多了 subtype。
+ * 舊版的備份仍可還原：沒有貸款就視為沒有貸款，舊的分類代碼會換成新分類。
+ */
+export const BACKUP_VERSION = 3;
 
 export interface BackupItem {
   id: string;
   kind: 'asset' | 'liability';
   category: string;
+  subtype?: string | null;
   name: string;
   currency: string;
   amount: string;
@@ -160,9 +164,18 @@ export function validateBackup(input: unknown): Check {
   data.loanModeChanges ??= [];
   data.loanAdjustments ??= [];
 
+  // 舊版分類代碼換成新分類（資料庫只接受新分類）
+  for (const row of [...data.items, ...data.snapshotLines]) {
+    if (row && typeof row.category === 'string' && row.category in LEGACY_CATEGORIES) {
+      row.category = LEGACY_CATEGORIES[row.category];
+    }
+  }
+
   const itemIds = new Set<string>();
   data.items.forEach((item, i) => {
     const at = `第 ${i + 1} 個項目`;
+    if (item?.subtype != null && (typeof item.subtype !== 'string' || item.subtype.length > 40))
+      fail(`${at}：細項格式錯誤`);
     if (!UUID_RE.test(String(item?.id))) fail(`${at}：id 格式錯誤`);
     else if (itemIds.has(item.id)) fail(`${at}：id 重複`);
     else itemIds.add(item.id);

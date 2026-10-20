@@ -7,7 +7,7 @@
  */
 import { toFixedString } from './decimal.ts';
 import { BASE_CURRENCY, type RateTable } from './fx.ts';
-import { type BalanceItem, CATEGORY_LABELS, valueItem } from './balance.ts';
+import { type BalanceItem, CATEGORY_LABELS, GROUP_LABELS, groupOf, subtypeLabel, valueItem } from './balance.ts';
 
 export type Cell = string | { number: string } | null;
 
@@ -22,12 +22,26 @@ export function itemsExportTable(
   rates: RateTable,
   baseCurrency = BASE_CURRENCY,
 ): ExportTable {
-  const header = ['類型', '分類', '名稱', '幣別', '原幣金額', '匯率', `${baseCurrency} 估值`, '狀態', '備註'];
+  const header = [
+    '類型',
+    '大類',
+    '分類',
+    '細項',
+    '名稱',
+    '幣別',
+    '原幣金額',
+    '匯率',
+    `${baseCurrency} 估值`,
+    '狀態',
+    '備註',
+  ];
   const rows = items.map((item): Cell[] => {
     const v = valueItem(item, rates, baseCurrency);
     return [
       item.kind === 'asset' ? '資產' : '負債',
+      GROUP_LABELS[groupOf(item.category)],
       CATEGORY_LABELS[item.category],
+      subtypeLabel(item.category, item.subtype) ?? '',
       item.name,
       item.currency,
       { number: toFixedString(v.amountDec, 4) },
@@ -48,23 +62,23 @@ function cellText(cell: Cell): string {
 /** 產生 CSV。開頭加 BOM，讓 Excel 正確辨識 UTF-8 中文 */
 export function toCsv(table: ExportTable): string {
   const escape = (text: string) => (/[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text);
-  const lines = [table.header, ...table.rows.map((row) => row.map(cellText))].map((row) =>
-    row.map(escape).join(','),
-  );
+  const lines = [table.header, ...table.rows.map((row) => row.map(cellText))].map((row) => row.map(escape).join(','));
   return `﻿${lines.join('\r\n')}\r\n`;
 }
 
 // ---------- .xlsx ----------
 
 function xmlEscape(text: string): string {
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    // XML 1.0 不允許的控制字元
-    // deno-lint-ignore no-control-regex
-    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '');
+  return (
+    text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      // XML 1.0 不允許的控制字元
+      // deno-lint-ignore no-control-regex
+      .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '')
+  );
 }
 
 function columnName(index: number): string {

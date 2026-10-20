@@ -1,7 +1,7 @@
 /**
  * App 外框：頁面堆疊＋底部浮動導覽列。
  *
- * 頁面堆疊完全由網址決定：/overview/cash_bank/1 就是「總覽 → 分類 → 項目」三層。
+ * 頁面堆疊完全由網址決定：/overview/liquid/1 就是「總覽 → 大類 → 項目」三層。
  * 每一層都是獨立捲動的全螢幕圖層，上層頁面一直留著（只是藏起來），所以：
  * - 往下一層：新頁面從右邊滑入，上一頁同時往左退，全程都看得到
  * - 返回：目前頁面往右滑出，底下的上一頁滑回來，捲動位置也還在
@@ -36,7 +36,7 @@ const IOS_EASE = 'cubic-bezier(0.32, 0.72, 0, 1)';
 
 type Animation = 'none' | 'push' | 'pop';
 
-/** /overview/cash_bank/1 → ['/overview', '/overview/cash_bank', '/overview/cash_bank/1'] */
+/** /overview/liquid/1 → ['/overview', '/overview/liquid', '/overview/liquid/1'] */
 function stackOf(path: string): string[] {
   const parts = path.split('/').filter(Boolean);
   if (parts.length === 0) return ['/'];

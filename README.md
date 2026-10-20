@@ -54,7 +54,7 @@ wealth-tracker/
    supabase link --project-ref <你的 project ref>
    supabase db push       # 套用 migrations/
    ```
-   不想用 CLI 的話，也可以把 `supabase/migrations/` 裡的 SQL 檔依檔名順序（先 `v1a_init`、再 `v1b_loans`）整份貼到後台 SQL Editor 執行。
+   不想用 CLI 的話，也可以把 `supabase/migrations/` 裡的 SQL 檔依檔名順序（`v1a_init` → `v1b_loans` → `categories`）整份貼到後台 SQL Editor 執行。
 
 ### 2. 設定登入
 
@@ -92,7 +92,7 @@ supabase functions deploy daily-snapshot --no-verify-jwt
 
 ### 只用瀏覽器設定 Supabase（不安裝 CLI）
 
-1. **建立資料表**：後台 → SQL Editor → New query，把 `supabase/migrations/20261019000000_v1a_init.sql` 整份貼上 → Run；再用同樣的方式執行 `20261021000000_v1b_loans.sql`。
+1. **建立資料表**：後台 → SQL Editor → New query，把 `supabase/migrations/20261019000000_v1a_init.sql` 整份貼上 → Run；再用同樣的方式依序執行 `20261021000000_v1b_loans.sql`、`20261022000000_categories.sql`。
 2. **設定登入網址**：同上方第 2 步。
 3. **設定密鑰**：後台 → Edge Functions → Secrets，新增 `CRON_SECRET`，值是一串夠長的亂碼（至少 32 個英數字）。
 4. **部署 Edge Functions**：後台 → Edge Functions → Deploy a new function → Via Editor：
@@ -165,10 +165,19 @@ Redirect URLs：新增 https://你的名稱.pages.dev/\*\*
 
 前端照常由 Cloudflare 從 GitHub 自動部署。順序建議先資料庫、再快照函式、最後前端。
 
+## 升級到三層分類
+
+分類改成「大類 → 分類 → 細項」：流動資金（現金、電子錢包、銀行帳戶、其他）、投資（投資基金、股票、加密貨幣、貴金屬、其他投資）、固定資產（房地產、其他固定資產）、應收款（借出款項、其他應收款）、負債（信用卡、貸款、應付款、其他負債）。電子錢包、股票、其他投資與貸款還可以再選細項，選項定義在 `core/balance.ts` 的 `CATEGORY_SUBTYPES`。
+
+舊資料自動轉換：現金與銀行 → 銀行帳戶、證券 → 股票、其他資產 → 其他投資、日常負債 → 其他負債、貸款不變。舊版備份檔還原時也會用同一張對照表轉換。
+
+1. **資料庫**：`supabase db push`，或在後台 SQL Editor 執行 `supabase/migrations/20261022000000_categories.sql`。
+2. **每日快照**：重新部署 `daily-snapshot`（同上）。資料庫轉換後舊版函式認不得新分類，兩步要一起做。
+
 ## 測試
 
 ```bash
-npm test          # 共用計算模組的 72 個測試
+npm test          # 共用計算模組的 75 個測試
 npm run typecheck # 前端型別檢查
 ```
 
@@ -179,10 +188,13 @@ createdb wt_test
 psql -d wt_test -v ON_ERROR_STOP=1 \
   -f supabase/tests/00_supabase_stub.sql \
   -f supabase/migrations/20261019000000_v1a_init.sql \
-  -f supabase/migrations/20261021000000_v1b_loans.sql \
   -f supabase/tests/v1a_behavior.sql \
-  -f supabase/tests/v1b_loans.sql
-# 應顯示 ALL SQL TESTS PASSED 與 ALL V1B SQL TESTS PASSED
+  -f supabase/migrations/20261021000000_v1b_loans.sql \
+  -f supabase/tests/v1b_loans.sql \
+  -f supabase/migrations/20261022000000_categories.sql \
+  -f supabase/tests/categories.sql
+# 應顯示 ALL SQL TESTS PASSED、ALL V1B SQL TESTS PASSED 與 ALL CATEGORY SQL TESTS PASSED
+# （每個測試檔用的是當時的分類，所以 migration 與測試要照這個順序交錯執行）
 ```
 
 規格驗收案例與測試的對應：
@@ -202,6 +214,7 @@ psql -d wt_test -v ON_ERROR_STOP=1 \
 | 16 負數拒絕              | `core/__tests__/validation.test.ts`、資料庫 check constraint |
 | V1b 還款表與餘額         | `core/__tests__/loan.test.ts`                                |
 | V1b 貸款資料隔離與還原   | `supabase/tests/v1b_loans.sql`                               |
+| 三層分類與舊資料轉換     | `supabase/tests/categories.sql`、`balance.test.ts`           |
 
 ## 設計決策備忘
 
@@ -210,7 +223,8 @@ psql -d wt_test -v ON_ERROR_STOP=1 \
 - **匯率歷史**：同一天、同一來源重複抓取時更新同一列，每天保留一筆。
 - **項目不刪除**：資料庫沒有開放 delete，只能封存；修改由 trigger 自動記錄到 `balance_item_changes`。
 - **快照**：使用者只能讀取；寫入只能透過 `save_snapshot()`，且只有 service role 能呼叫。
-- **還原**：在資料庫函式 `restore_backup()` 內以單一交易完成；前端呼叫前會先自動下載一份目前資料。匯率是共用資料，不還原。備份版本 2 起包含貸款資料，版本 1 的備份仍可還原。
+- **還原**：在資料庫函式 `restore_backup()` 內以單一交易完成；前端呼叫前會先自動下載一份目前資料。匯率是共用資料，不還原。備份版本 2 起包含貸款資料，版本 3 起包含細項；舊版本的備份仍可還原。
+- **分類**：大類只存在程式裡（`GROUP_CATEGORIES`），資料庫存分類與細項。首頁與平衡長條的資產依大類分段、負債依分類分段。
 - **貸款餘額**：貸款是一個「貸款」分類的項目，金額由 `core/loan.ts` 的還款表算出。前端打開時用今天的餘額（和資料庫不同時寫回），每日快照用快照當天的餘額，兩邊是同一套算法，所以首頁、快照、匯出都一致。
 - **貸款計算規則**：每期利息 = 期初本金 × 年利率 ÷ 12；不滿一個月的期間按日計息（÷ 365）；緩繳本息不計息；四捨五入到元，最後一期還清零頭。和銀行對帳單有差距時，用「校正餘額」改成銀行的數字。
 

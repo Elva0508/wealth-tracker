@@ -24,9 +24,9 @@ describe('建立快照', () => {
   const runAt = new Date('2026-10-19T22:00:00Z');
 
   it('只包含啟用中的項目，總額與明細一致', () => {
-    const usd = item('cash_bank', '1000', { currency: 'USD' });
+    const usd = item('bank', '1000', { currency: 'USD' });
     const snap = buildSnapshot(
-      [item('cash_bank', '100000'), usd, item('loan', '50000'), item('cash_bank', '999', { status: 'archived' })],
+      [item('bank', '100000'), usd, item('loan', '50000'), item('bank', '999', { status: 'archived' })],
       rates({ USD: '32' }, { fetchedAt: '2026-10-19T21:50:00Z' }),
       runAt,
     );
@@ -41,7 +41,7 @@ describe('建立快照', () => {
   });
 
   it('規格案例 11：快照是當下的複本，之後改金額不影響已建立的快照', () => {
-    const cash = item('cash_bank', '100000');
+    const cash = item('bank', '100000');
     const items = [cash];
     const first = buildSnapshot(items, rates({}), runAt);
     cash.amount = '200000';
@@ -50,7 +50,7 @@ describe('建立快照', () => {
   });
 
   it('缺少匯率的項目保留明細但不計入總額，狀態標示 missing', () => {
-    const snap = buildSnapshot([item('cash_bank', '500', { currency: 'CHF' })], rates({}), runAt);
+    const snap = buildSnapshot([item('bank', '500', { currency: 'CHF' })], rates({}), runAt);
     expect(snap.totalAssets).toBe('0.0000');
     expect(snap.fxStatus).toBe('missing');
     expect(snap.lines[0]).toMatchObject({ fxRate: null, amountBase: null });

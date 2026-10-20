@@ -111,10 +111,23 @@ function fxStatusFor(currencies, table, now, baseCurrency = BASE_CURRENCY) {
 }
 
 // supabase/functions/_shared/core/balance.ts
-var ASSET_CATEGORIES = ["cash_bank", "securities", "other_asset"];
-var LIABILITY_CATEGORIES = ["loan", "daily_liability"];
+var CATEGORY_GROUPS = ["liquid", "investment", "fixed", "receivable", "liability"];
+var ASSET_GROUPS = ["liquid", "investment", "fixed", "receivable"];
+var GROUP_CATEGORIES = {
+  liquid: ["cash", "ewallet", "bank", "liquid_other"],
+  investment: ["fund", "stock", "crypto", "metal", "investment_other"],
+  fixed: ["real_estate", "fixed_other"],
+  receivable: ["lending", "receivable_other"],
+  liability: ["credit_card", "loan", "payable", "liability_other"]
+};
+var ASSET_CATEGORIES = ASSET_GROUPS.flatMap((g) => GROUP_CATEGORIES[g]);
+var LIABILITY_CATEGORIES = GROUP_CATEGORIES.liability;
+var CATEGORIES = [...ASSET_CATEGORIES, ...LIABILITY_CATEGORIES];
+function groupOf(category) {
+  return CATEGORY_GROUPS.find((g) => GROUP_CATEGORIES[g].includes(category));
+}
 function kindOf(category) {
-  return ASSET_CATEGORIES.includes(category) ? "asset" : "liability";
+  return groupOf(category) === "liability" ? "liability" : "asset";
 }
 function valueItem(item, rates, baseCurrency = BASE_CURRENCY) {
   const amountDec = dec(item.amount);
@@ -122,9 +135,8 @@ function valueItem(item, rates, baseCurrency = BASE_CURRENCY) {
   return { ...item, amountDec, rate, amountBase: rate === null ? null : mul(amountDec, rate) };
 }
 function summarize(items, rates, baseCurrency = BASE_CURRENCY) {
-  const categories = Object.fromEntries(
-    [...ASSET_CATEGORIES, ...LIABILITY_CATEGORIES].map((c) => [c, { category: c, total: ZERO, count: 0 }])
-  );
+  const categories = Object.fromEntries(CATEGORIES.map((c) => [c, { category: c, total: ZERO, count: 0 }]));
+  const groups = Object.fromEntries(CATEGORY_GROUPS.map((g) => [g, { group: g, total: ZERO, count: 0 }]));
   const valued = [];
   const missing = /* @__PURE__ */ new Set();
   let totalAssets = ZERO;
@@ -133,12 +145,15 @@ function summarize(items, rates, baseCurrency = BASE_CURRENCY) {
     if (item.status !== "active") continue;
     const v = valueItem(item, rates, baseCurrency);
     valued.push(v);
+    const group = groupOf(item.category);
     categories[item.category].count += 1;
+    groups[group].count += 1;
     if (v.amountBase === null) {
       missing.add(item.currency);
       continue;
     }
     categories[item.category].total += v.amountBase;
+    groups[group].total += v.amountBase;
     if (kindOf(item.category) === "asset") totalAssets += v.amountBase;
     else totalLiabilities += v.amountBase;
   }
@@ -148,6 +163,7 @@ function summarize(items, rates, baseCurrency = BASE_CURRENCY) {
     totalLiabilities,
     netWorth: totalAssets - totalLiabilities,
     categories,
+    groups,
     items: valued,
     missingCurrencies: [...missing].sort()
   };

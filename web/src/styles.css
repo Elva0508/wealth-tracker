@@ -1502,3 +1502,128 @@ textarea {
   display: flex;
   justify-content: space-between;
 }
+
+/* ---------- 新增項目：大類 → 分類 → 細項 ---------- */
+.add-flow {
+  animation: flow-in 0.22s ease both;
+}
+
+@keyframes flow-in {
+  from {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+}
+
+.add-flow > .segmented {
+  margin-bottom: 20px;
+}
+
+.picker {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.picker-group__head {
+  width: 100%;
+  min-height: 50px;
+  padding: 0 16px 0 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: none;
+  border-radius: 14px;
+  background: var(--group-color);
+  color: var(--group-ink);
+  font-size: 17px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-radius 0.2s ease;
+}
+
+.picker-group__head:active {
+  filter: brightness(0.94);
+}
+
+.picker-group--open .picker-group__head {
+  border-radius: 14px 14px 0 0;
+}
+
+.picker-group__chevron {
+  display: flex;
+  transition: transform 0.2s ease;
+}
+
+.picker-group--open .picker-group__chevron {
+  transform: rotate(90deg);
+}
+
+.picker-group__list {
+  border-top: none;
+  border-radius: 0 0 14px 14px;
+  animation: picker-open 0.2s ease both;
+}
+
+@keyframes picker-open {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+
+.category-badge {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--badge-color);
+  background: color-mix(in srgb, var(--badge-color) 16%, transparent);
+}
+
+.step-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: -6px 0 18px;
+}
+
+.step-header__back {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  margin-left: -8px;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--sage-700);
+  cursor: pointer;
+}
+
+.step-header__back:active {
+  background: rgb(70 58 36 / 0.07);
+}
+
+.step-header__path {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink-muted);
+}
+
+/* 大類頁裡每個分類的小標題右邊放小計 */
+.list-group__label--split {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .add-flow,
+  .picker-group__list {
+    animation: none;
+  }
+}

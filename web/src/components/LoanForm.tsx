@@ -2,28 +2,41 @@
  * 新增貸款，或把原本手動輸入的貸款項目轉成自動計算。
  * 檢查規則在 @core 的 validateLoanInput()，資料庫也有對應的限制。
  */
-import { type LoanInputErrors, type RepaymentMode, validateLoanInput } from '@core';
-import { type FormEvent, useState } from 'react';
-import { useAppData } from '../hooks/useAppData';
-import * as api from '../lib/api';
-import { ModeFields } from './ModeFields';
+import {
+  CATEGORY_SUBTYPES,
+  type LoanInputErrors,
+  type RepaymentMode,
+  validateLoanInput,
+} from "@core";
+import { type FormEvent, useState } from "react";
+import { useAppData } from "../hooks/useAppData";
+import * as api from "../lib/api";
+import { ModeFields } from "./ModeFields";
 
 export function LoanForm({
   convert,
+  initialSubtype = null,
   onSaved,
 }: {
   /** 有給時是轉換既有的手動項目 */
   convert?: api.Item;
+  /** 貸款類型（房貸、學貸…），新增時從分類清單帶進來 */
+  initialSubtype?: string | null;
   onSaved: (loanId: string) => void;
 }) {
   const { items, today, reload } = useAppData();
-  const [name, setName] = useState(convert?.name ?? '');
+  const [name, setName] = useState(convert?.name ?? "");
+  const [subtype, setSubtype] = useState(
+    convert?.subtype ?? initialSubtype ?? "",
+  );
   const [startDate, setStartDate] = useState(today);
-  const [principal, setPrincipal] = useState(convert ? String(Number(convert.amount)) : '');
-  const [firstPaymentDate, setFirstPaymentDate] = useState('');
-  const [annualRate, setAnnualRate] = useState('');
-  const [mode, setMode] = useState<RepaymentMode>('annuity');
-  const [termMonths, setTermMonths] = useState('');
+  const [principal, setPrincipal] = useState(
+    convert ? String(Number(convert.amount)) : "",
+  );
+  const [firstPaymentDate, setFirstPaymentDate] = useState("");
+  const [annualRate, setAnnualRate] = useState("");
+  const [mode, setMode] = useState<RepaymentMode>("annuity");
+  const [termMonths, setTermMonths] = useState("");
   const [interestEvery, setInterestEvery] = useState(12);
   const [errors, setErrors] = useState<LoanInputErrors>({});
   const [saving, setSaving] = useState(false);
@@ -49,9 +62,10 @@ export function LoanForm({
     setSaving(true);
     setSaveError(null);
     try {
-      const loans = items.filter((i) => i.category === 'loan');
+      const loans = items.filter((i) => i.category === "loan");
       const loanId = await api.createLoan(result.value, {
-        currency: convert?.currency ?? 'TWD',
+        currency: convert?.currency ?? "TWD",
+        subtype: subtype || null,
         itemId: convert?.id,
         sortOrder: loans.reduce((max, i) => Math.max(max, i.sortOrder), -1) + 1,
       });
@@ -77,6 +91,20 @@ export function LoanForm({
               maxLength={60}
             />
           </label>
+          <label className="list-row list-row--field">
+            <span className="list-row__label">類型</span>
+            <select
+              value={subtype}
+              onChange={(e) => setSubtype(e.target.value)}
+            >
+              <option value="">不指定</option>
+              {CATEGORY_SUBTYPES.loan?.map((s) => (
+                <option key={s.key} value={s.key}>
+                  {s.label}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
         {errors.name && <p className="field__error">{errors.name}</p>}
       </div>
@@ -85,7 +113,11 @@ export function LoanForm({
         <div className="list">
           <label className="list-row list-row--field">
             <span className="list-row__label">起算日</span>
-            <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+            />
           </label>
           <label className="list-row list-row--field">
             <span className="list-row__label">起算本金</span>
@@ -100,7 +132,11 @@ export function LoanForm({
           </label>
           <label className="list-row list-row--field">
             <span className="list-row__label">第一次扣款</span>
-            <input type="date" value={firstPaymentDate} onChange={(e) => setFirstPaymentDate(e.target.value)} />
+            <input
+              type="date"
+              value={firstPaymentDate}
+              onChange={(e) => setFirstPaymentDate(e.target.value)}
+            />
           </label>
           <label className="list-row list-row--field">
             <span className="list-row__label">年利率</span>
@@ -115,7 +151,9 @@ export function LoanForm({
             <span className="list-row__unit">%</span>
           </label>
         </div>
-        {(['startDate', 'principal', 'firstPaymentDate', 'annualRate'] as const).map(
+        {(
+          ["startDate", "principal", "firstPaymentDate", "annualRate"] as const
+        ).map(
           (key) =>
             errors[key] && (
               <p key={key} className="field__error">
@@ -136,7 +174,8 @@ export function LoanForm({
         onChange={(next) => {
           if (next.mode) setMode(next.mode);
           if (next.termMonths !== undefined) setTermMonths(next.termMonths);
-          if (next.interestEvery !== undefined) setInterestEvery(next.interestEvery);
+          if (next.interestEvery !== undefined)
+            setInterestEvery(next.interestEvery);
         }}
       />
 
@@ -146,7 +185,7 @@ export function LoanForm({
         </p>
       )}
       <button type="submit" className="btn btn--primary" disabled={saving}>
-        {saving ? '儲存中…' : convert ? '轉成自動計算' : '新增貸款'}
+        {saving ? "儲存中…" : convert ? "轉成自動計算" : "新增貸款"}
       </button>
     </form>
   );
