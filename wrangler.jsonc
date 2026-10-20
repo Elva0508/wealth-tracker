@@ -5,5 +5,7 @@
   "assets": {
     "directory": "./web/dist",
     "not_found_handling": "single-page-application"
-  }
+  },
+  // 非正式分支的推送會用 wrangler preview 建立預覽版，需要這個區塊（可以是空的）
+  "previews": {}
 }
