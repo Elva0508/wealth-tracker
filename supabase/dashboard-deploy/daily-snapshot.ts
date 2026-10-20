@@ -51,6 +51,11 @@ function toFixedString(a, digits = SCALE) {
   return negative ? `-${body}` : body;
 }
 
+// supabase/functions/_shared/core/format.ts
+function displayDigits(currency, baseCurrency = "TWD") {
+  return currency === baseCurrency ? 0 : 2;
+}
+
 // supabase/functions/_shared/core/dates.ts
 var TAIPEI_OFFSET_MS = 8 * 60 * 60 * 1e3;
 function taipeiDate(at) {
@@ -184,6 +189,237 @@ var CRC_TABLE = (() => {
   return table;
 })();
 
+// supabase/functions/_shared/core/loan.ts
+function modeHasTerm(mode) {
+  return mode === "annuity" || mode === "equal_principal" || mode === "bullet";
+}
+var MAX_PERIODS = 600;
+var HP = 10n ** 18n;
+var RATE_DENOMINATOR = 1200n * ONE;
+var dayMs = 864e5;
+function daysBetween(from, to) {
+  return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / dayMs);
+}
+function addMonths(date, months, day) {
+  const [y, m] = date.split("-").map(Number);
+  const total = y * 12 + (m - 1) + months;
+  const year = Math.floor(total / 12);
+  const month = total % 12 + 1;
+  const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  return `${year}-${String(month).padStart(2, "0")}-${String(Math.min(day, lastDay)).padStart(2, "0")}`;
+}
+function dueDate(loan, k) {
+  const day = Number(loan.firstPaymentDate.slice(8, 10));
+  return addMonths(loan.firstPaymentDate, k, day);
+}
+function monthlyInterest(balance, ratePercent) {
+  return roundDiv(balance * ratePercent, RATE_DENOMINATOR);
+}
+function dailyInterest(balance, ratePercent, days) {
+  return roundDiv(balance * ratePercent * BigInt(days), 36500n * ONE);
+}
+function powHP(base, exponent) {
+  let result = HP;
+  let b = base;
+  let e = exponent;
+  while (e > 0) {
+    if (e & 1) result = roundDiv(result * b, HP);
+    b = roundDiv(b * b, HP);
+    e >>= 1;
+  }
+  return result;
+}
+function annuityPayment(balance, ratePercent, periods) {
+  if (periods <= 0) return balance;
+  if (ratePercent === ZERO) return roundDiv(balance, BigInt(periods));
+  const r = roundDiv(ratePercent * HP, RATE_DENOMINATOR);
+  const growth = powHP(HP + r, periods);
+  return roundDiv(balance * r * growth, HP * (growth - HP));
+}
+var byDate = (list, key) => [...list].sort((a, b) => key(a).localeCompare(key(b)));
+function lastOnOrBefore(sorted, key, date) {
+  let found = null;
+  for (const item of sorted) {
+    if (key(item) <= date) found = item;
+    else break;
+  }
+  return found;
+}
+function buildSchedule(loan, until) {
+  const digits = displayDigits(loan.currency);
+  const money = (value) => round(value, digits);
+  const modes = byDate(loan.modeChanges, (m) => m.effectiveDate);
+  const rates = byDate(loan.rateChanges, (r) => r.effectiveDate);
+  const adjustments = byDate(loan.adjustments, (a) => a.date);
+  const rateAt = (date) => {
+    const found = lastOnOrBefore(rates, (r) => r.effectiveDate, date) ?? rates[0];
+    return found ? dec(found.annualRate) : ZERO;
+  };
+  const rows = [];
+  let balance = dec(loan.principal);
+  let paidOffAt = null;
+  let nextAdjustment = 0;
+  let modeIndex = -1;
+  let periodInMode = 0;
+  let fixedPayment = null;
+  let fixedPrincipal = null;
+  let recast = true;
+  let lastRate = null;
+  let unpaidInterest = ZERO;
+  const applyAdjustment = (adj) => {
+    const before = balance;
+    const amount = dec(adj.amount);
+    if (adj.kind === "prepayment") {
+      const paid = amount > balance ? balance : amount;
+      balance -= paid;
+      if (adj.keep === "term") recast = true;
+    } else {
+      balance = amount;
+      recast = true;
+    }
+    rows.push({
+      type: adj.kind,
+      date: adj.date,
+      mode: modes[modeIndex]?.mode ?? null,
+      period: null,
+      periodsInMode: null,
+      rate: rateAt(adj.date),
+      principal: before - balance,
+      interest: ZERO,
+      payment: adj.kind === "prepayment" ? before - balance : ZERO,
+      balance
+    });
+    if (balance === ZERO) paidOffAt = adj.date;
+  };
+  const applyAdjustmentsBefore = (date, inclusive) => {
+    while (nextAdjustment < adjustments.length && paidOffAt === null) {
+      const adj = adjustments[nextAdjustment];
+      if (adj.date <= loan.startDate) {
+        nextAdjustment += 1;
+        continue;
+      }
+      if (inclusive ? adj.date > date : adj.date >= date) break;
+      applyAdjustment(adj);
+      nextAdjustment += 1;
+    }
+  };
+  let periodStart = loan.startDate;
+  for (let k = 0; k < MAX_PERIODS * 2 && paidOffAt === null; k += 1) {
+    const due = dueDate(loan, k);
+    if (due <= loan.startDate) continue;
+    if (due > until) break;
+    const openingBalance = balance;
+    applyAdjustmentsBefore(due, false);
+    if (paidOffAt !== null) break;
+    const current = lastOnOrBefore(modes, (m) => m.effectiveDate, due) ?? modes[0];
+    if (!current) break;
+    const currentIndex = modes.indexOf(current);
+    let accrualFrom = periodStart;
+    if (currentIndex !== modeIndex) {
+      const previous = modes[modeIndex];
+      if (previous?.mode === "defer_all" && current.effectiveDate > periodStart) accrualFrom = current.effectiveDate;
+      modeIndex = currentIndex;
+      periodInMode = 0;
+      fixedPayment = null;
+      fixedPrincipal = null;
+      recast = true;
+    }
+    const rate = rateAt(periodStart);
+    if (current.mode === "defer_all") {
+      periodStart = due;
+      applyAdjustmentsBefore(due, true);
+      continue;
+    }
+    if (daysBetween(accrualFrom, due) <= 0) {
+      periodStart = due;
+      applyAdjustmentsBefore(due, true);
+      continue;
+    }
+    const fullMonth = addMonths(accrualFrom, 1, Number(due.slice(8, 10))) === due;
+    const accrued = fullMonth ? monthlyInterest(openingBalance, rate) : dailyInterest(openingBalance, rate, daysBetween(accrualFrom, due));
+    periodInMode += 1;
+    const term = current.termMonths ?? 0;
+    const remaining = Math.max(1, term - periodInMode + 1);
+    let principal = ZERO;
+    let interest = ZERO;
+    let payNow = true;
+    if (current.mode === "interest_only") {
+      unpaidInterest += accrued;
+      const every = Math.max(1, current.interestEvery ?? 1);
+      payNow = periodInMode % every === 0;
+      if (payNow) {
+        interest = money(unpaidInterest);
+        unpaidInterest = ZERO;
+      }
+    } else {
+      interest = money(unpaidInterest + accrued);
+      unpaidInterest = ZERO;
+      if (current.mode === "annuity") {
+        if (recast || fixedPayment === null || lastRate !== null && rate !== lastRate) {
+          fixedPayment = money(annuityPayment(balance, rate, remaining));
+        }
+        principal = fixedPayment - interest;
+        if (principal < ZERO) principal = ZERO;
+      } else if (current.mode === "equal_principal") {
+        if (recast || fixedPrincipal === null) fixedPrincipal = money(roundDiv(balance, BigInt(remaining)));
+        principal = fixedPrincipal;
+      }
+      if (remaining <= 1 || principal >= balance) principal = balance;
+    }
+    recast = false;
+    lastRate = rate;
+    if (payNow) {
+      balance -= principal;
+      rows.push({
+        type: "payment",
+        date: due,
+        mode: current.mode,
+        period: periodInMode,
+        periodsInMode: modeHasTerm(current.mode) ? term : null,
+        rate,
+        principal,
+        interest,
+        payment: principal + interest,
+        balance
+      });
+      if (balance === ZERO) paidOffAt = due;
+    }
+    periodStart = due;
+    applyAdjustmentsBefore(due, true);
+  }
+  if (paidOffAt === null) applyAdjustmentsBefore(until, true);
+  return { rows, balance, paidOffAt };
+}
+function loanBalanceOn(loan, date) {
+  if (date < loan.startDate) return dec(loan.principal);
+  return buildSchedule(loan, date).balance;
+}
+function loansFromRows(loans, rates, modes, adjustments, currencyOfItem) {
+  return loans.map((l) => ({
+    id: l.id,
+    itemId: l.item_id,
+    currency: currencyOfItem(l.item_id) ?? "TWD",
+    startDate: l.start_date,
+    principal: l.principal,
+    firstPaymentDate: l.first_payment_date,
+    rateChanges: rates.filter((r) => r.loan_id === l.id).map((r) => ({ effectiveDate: r.effective_date, annualRate: r.annual_rate })),
+    modeChanges: modes.filter((m) => m.loan_id === l.id).map((m) => ({
+      effectiveDate: m.effective_date,
+      mode: m.mode,
+      termMonths: m.term_months,
+      interestEvery: m.interest_every
+    })),
+    adjustments: adjustments.filter((a) => a.loan_id === l.id).map((a) => ({ date: a.adjust_date, kind: a.kind, amount: a.amount, keep: a.keep }))
+  }));
+}
+function withLoanBalances(items, loans, date) {
+  const byItem = new Map(loans.map((l) => [l.itemId, l]));
+  return items.map((item) => {
+    const loan = byItem.get(item.id);
+    return loan ? { ...item, amount: toFixedString(loanBalanceOn(loan, date), 4) } : item;
+  });
+}
+
 // supabase/functions/_shared/auth.ts
 import { createClient } from "npm:@supabase/supabase-js@2";
 function serviceClient() {
@@ -231,6 +467,15 @@ function timingSafeEqual(a, b) {
 
 // supabase/functions/daily-snapshot/index.ts
 var PAGE_SIZE = 1e3;
+async function readAll(db, table, columns) {
+  const rows = [];
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const { data, error } = await db.from(table).select(columns).order("id").range(from, from + PAGE_SIZE - 1);
+    if (error) throw new Error(`${table}: ${error.message}`);
+    rows.push(...data ?? []);
+    if (!data || data.length < PAGE_SIZE) return rows;
+  }
+}
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   const caller = await identifyCaller(req);
@@ -240,22 +485,36 @@ Deno.serve(async (req) => {
   const { data: fxRows, error: fxError } = await db.from("fx_latest").select("currency, mid_rate:mid_rate::text, source, rate_date, fetched_at");
   if (fxError) return json({ ok: false, error: fxError.message }, 500);
   const rates = rateTableFromRows(fxRows ?? []);
+  let loans;
   const itemsByUser = /* @__PURE__ */ new Map();
-  for (let from = 0; ; from += PAGE_SIZE) {
-    const { data, error } = await db.from("balance_items").select("id, user_id, kind, category, name, currency, amount:amount::text, status").order("id").range(from, from + PAGE_SIZE - 1);
-    if (error) return json({ ok: false, error: error.message }, 500);
-    for (const row of data ?? []) {
+  try {
+    const [itemRows, loanRows, rateRows, modeRows, adjustmentRows] = await Promise.all([
+      readAll(
+        db,
+        "balance_items",
+        "id, user_id, kind, category, name, currency, amount:amount::text, status"
+      ),
+      readAll(db, "loans", "id, item_id, start_date, principal:principal::text, first_payment_date"),
+      readAll(db, "loan_rate_changes", "id, loan_id, effective_date, annual_rate:annual_rate::text"),
+      readAll(db, "loan_mode_changes", "id, loan_id, effective_date, mode, term_months, interest_every"),
+      readAll(db, "loan_adjustments", "id, loan_id, adjust_date, kind, amount:amount::text, keep")
+    ]);
+    for (const row of itemRows) {
       const list = itemsByUser.get(row.user_id) ?? [];
       list.push(row);
       itemsByUser.set(row.user_id, list);
     }
-    if (!data || data.length < PAGE_SIZE) break;
+    const currencyOfItem = new Map(itemRows.map((i) => [i.id, i.currency.trim()]));
+    loans = loansFromRows(loanRows, rateRows, modeRows, adjustmentRows, (id) => currencyOfItem.get(id));
+  } catch (error) {
+    return json({ ok: false, error: String(error) }, 500);
   }
+  const snapshotDate = snapshotDateFor(runAt);
   let saved = 0;
   const failures = [];
   for (const [userId, items] of itemsByUser) {
     try {
-      const snap = buildSnapshot(items, rates, runAt);
+      const snap = buildSnapshot(withLoanBalances(items, loans, snapshotDate), rates, runAt);
       const { error } = await db.rpc("save_snapshot", {
         p_user_id: userId,
         p_snapshot_date: snap.snapshotDate,

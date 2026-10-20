@@ -20,7 +20,7 @@
  * - 提前還款與校正餘額：發生在兩次扣款之間時，當期利息仍以期初本金計算
  * - 金額四捨五入到元（新台幣）或分（外幣）；最後一期把剩下的零頭一次還清
  */
-import { type Dec, ONE, ZERO, dec, roundDiv, round } from './decimal.ts';
+import { type Dec, ONE, ZERO, dec, roundDiv, round, toFixedString } from './decimal.ts';
 import { displayDigits } from './format.ts';
 import { parseAmountInput } from './validation.ts';
 
@@ -380,6 +380,94 @@ export function loanBalanceOn(loan: Loan, date: string): Dec {
 /** 下一次要繳的錢（date 之後的第一筆扣款）；已還清或一直緩繳時為 null */
 export function nextPayment(loan: Loan, date: string, horizon: string): ScheduleRow | null {
   return buildSchedule(loan, horizon).rows.find((r) => r.type === 'payment' && r.date > date) ?? null;
+}
+
+// ---------- 資料庫資料 → 計算用的貸款 ----------
+
+/** 和資料庫欄位同名；numeric 欄位以字串讀入 */
+export interface LoanRow {
+  id: string;
+  item_id: string;
+  start_date: string;
+  principal: string;
+  first_payment_date: string;
+}
+export interface LoanRateRow {
+  id?: string;
+  loan_id: string;
+  effective_date: string;
+  annual_rate: string;
+}
+export interface LoanModeRow {
+  id?: string;
+  loan_id: string;
+  effective_date: string;
+  mode: RepaymentMode;
+  term_months: number | null;
+  interest_every: number | null;
+}
+export interface LoanAdjustmentRow {
+  id?: string;
+  loan_id: string;
+  adjust_date: string;
+  kind: AdjustmentKind;
+  amount: string;
+  keep: 'term' | 'payment';
+  note?: string | null;
+}
+
+/** 掛在某個項目底下的貸款 */
+export interface LinkedLoan extends Loan {
+  id: string;
+  itemId: string;
+}
+
+/** 把四張表的資料組成計算用的貸款；幣別用所屬項目的幣別 */
+export function loansFromRows(
+  loans: LoanRow[],
+  rates: LoanRateRow[],
+  modes: LoanModeRow[],
+  adjustments: LoanAdjustmentRow[],
+  currencyOfItem: (itemId: string) => string | undefined,
+): LinkedLoan[] {
+  return loans.map((l) => ({
+    id: l.id,
+    itemId: l.item_id,
+    currency: currencyOfItem(l.item_id) ?? 'TWD',
+    startDate: l.start_date,
+    principal: l.principal,
+    firstPaymentDate: l.first_payment_date,
+    rateChanges: rates
+      .filter((r) => r.loan_id === l.id)
+      .map((r) => ({ effectiveDate: r.effective_date, annualRate: r.annual_rate })),
+    modeChanges: modes
+      .filter((m) => m.loan_id === l.id)
+      .map((m) => ({
+        effectiveDate: m.effective_date,
+        mode: m.mode,
+        termMonths: m.term_months,
+        interestEvery: m.interest_every,
+      })),
+    adjustments: adjustments
+      .filter((a) => a.loan_id === l.id)
+      .map((a) => ({ date: a.adjust_date, kind: a.kind, amount: a.amount, keep: a.keep })),
+  }));
+}
+
+/**
+ * 把貸款項目的金額換成還款表算出的某一天的餘額。
+ * 首頁、每日快照、匯出都先經過這裡，所以貸款的金額永遠和還款表一致。
+ */
+export function withLoanBalances<T extends { id: string; amount: string }>(
+  items: T[],
+  loans: LinkedLoan[],
+  date: string,
+): T[] {
+  const byItem = new Map(loans.map((l) => [l.itemId, l]));
+  return items.map((item) => {
+    const loan = byItem.get(item.id);
+    return loan ? { ...item, amount: toFixedString(loanBalanceOn(loan, date), 4) } : item;
+  });
 }
 
 // ---------- 表單檢查 ----------

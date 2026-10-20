@@ -10,6 +10,8 @@ import {
   parseRateInput,
   validateLoanInput,
   validateModeInput,
+  loansFromRows,
+  withLoanBalances,
   toFixedString,
 } from '../index.ts';
 
@@ -226,5 +228,37 @@ describe('表單檢查', () => {
     expect(r.ok && r.value.interestEvery).toBe(12);
     expect(parseRateInput('101').ok).toBe(false);
     expect(parseRateInput('1.77500')).toEqual({ ok: true, value: '1.775' });
+  });
+});
+
+describe('接上首頁與快照', () => {
+  it('資料庫資料組成貸款，貸款項目的金額換成當天的餘額，其他項目不變', () => {
+    const loans = loansFromRows(
+      [
+        {
+          id: 'L1',
+          item_id: 'I1',
+          start_date: '2026-01-15',
+          principal: '1200000.0000',
+          first_payment_date: '2026-02-15',
+        },
+      ],
+      [{ loan_id: 'L1', effective_date: '2026-01-15', annual_rate: '3.0000' }],
+      [{ loan_id: 'L1', effective_date: '2026-01-15', mode: 'equal_principal', term_months: 12, interest_every: null }],
+      [],
+      () => 'TWD',
+    );
+    const items = withLoanBalances(
+      [
+        { id: 'I1', amount: '1200000' },
+        { id: 'I2', amount: '500' },
+      ],
+      loans,
+      '2026-04-20',
+    );
+    expect(items).toEqual([
+      { id: 'I1', amount: '900000.0000' }, // 已扣款 3 期，每期還 10 萬本金
+      { id: 'I2', amount: '500' },
+    ]);
   });
 });
