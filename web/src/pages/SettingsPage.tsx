@@ -1,23 +1,24 @@
 /**
  * 設定第一層：隱私開關、帳號，其餘功能點進下一層。
  */
-import { IonToggle, useIonRouter } from '@ionic/react';
+import { useNavigate } from 'react-router';
 import { ChevronRightIcon } from '../components/Icons';
 import { Page } from '../components/Page';
 import { useAppData } from '../hooks/useAppData';
 import { useAuth } from '../hooks/useAuth';
+import { TaskNotice } from '../components/TaskNotice';
 import { useTask } from '../hooks/useTask';
 import { supabase } from '../lib/supabase';
 
 export function SettingsPage() {
   const { items, settings, setHideByDefault } = useAppData();
   const { session } = useAuth();
-  const { busy, run } = useTask();
-  const router = useIonRouter();
+  const { busy, run, message } = useTask();
+  const navigate = useNavigate();
   const archivedCount = items.filter((i) => i.status === 'archived').length;
 
   const link = (to: string, label: string, value?: string) => (
-    <button type="button" className="list-row list-row--button" onClick={() => router.push(to, 'forward')}>
+    <button type="button" className="list-row list-row--button" onClick={() => navigate(to)}>
       <span className="list-row__main">{label}</span>
       {value && <span className="list-row__detail">{value}</span>}
       <span className="list-row__chevron">
@@ -28,16 +29,20 @@ export function SettingsPage() {
 
   return (
     <Page title="設定" largeTitle>
+      {message && <TaskNotice message={message} />}
       <section className="list-group">
         <h2 className="list-group__label">隱私</h2>
         <div className="list">
           <div className="list-row">
             <span className="list-row__main">開啟 App 時隱藏金額</span>
-            <IonToggle
+            <input
+              type="checkbox"
+              role="switch"
+              className="switch"
               aria-label="開啟 App 時隱藏金額"
               checked={settings?.hideAmounts ?? true}
               disabled={busy || !settings}
-              onIonChange={(e) => run(() => setHideByDefault(e.detail.checked))}
+              onChange={(e) => run(() => setHideByDefault(e.target.checked))}
             />
           </div>
         </div>

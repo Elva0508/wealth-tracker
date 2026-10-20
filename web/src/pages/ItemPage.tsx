@@ -1,8 +1,7 @@
 /** 第三層：編輯單一項目 */
 import { CATEGORY_LABELS, isCategory } from '@core';
-import { useIonAlert, useIonRouter } from '@ionic/react';
 import { useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router';
 import { ItemForm } from '../components/ItemForm';
 import { Page } from '../components/Page';
 import { useAppData } from '../hooks/useAppData';
@@ -11,8 +10,7 @@ import * as api from '../lib/api';
 export function ItemPage() {
   const { category, itemId } = useParams();
   const { items, loading, reload } = useAppData();
-  const router = useIonRouter();
-  const [presentAlert] = useIonAlert();
+  const navigate = useNavigate();
   const [archiveError, setArchiveError] = useState<string | null>(null);
 
   const backHref = category && isCategory(category) ? `/overview/${category}` : '/overview';
@@ -22,30 +20,21 @@ export function ItemPage() {
   const item = items.find((i) => i.id === itemId && i.status === 'active');
 
   // 從網址直接打開時沒有上一頁，改成退回分類頁
-  const leave = () => (router.canGoBack() ? router.goBack() : router.push(backHref, 'back', 'replace'));
+  const leave = () =>
+    ((window.history.state as { idx?: number } | null)?.idx ?? 0) > 0
+      ? navigate(-1)
+      : navigate(backHref, { replace: true });
 
   function confirmArchive() {
     if (!item) return;
-    presentAlert({
-      header: `封存「${item.name}」？`,
-      message: '封存後不計入總額，之後可在設定頁恢復。',
-      buttons: [
-        { text: '取消', role: 'cancel' },
-        {
-          text: '封存',
-          role: 'destructive',
-          handler: () => {
-            api
-              .setArchived(item.id, true)
-              .then(() => {
-                leave();
-                return reload();
-              })
-              .catch((err) => setArchiveError(err instanceof Error ? err.message : String(err)));
-          },
-        },
-      ],
-    });
+    if (!window.confirm(`封存「${item.name}」？封存後不計入總額，之後可在設定頁恢復。`)) return;
+    api
+      .setArchived(item.id, true)
+      .then(() => {
+        leave();
+        return reload();
+      })
+      .catch((err) => setArchiveError(err instanceof Error ? err.message : String(err)));
   }
 
   return (

@@ -12,8 +12,8 @@ import {
   latestFetchedAt,
   summarize,
 } from '@core';
-import { IonButton, IonFab, IonFabButton, useIonRouter } from '@ionic/react';
 import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router';
 import { Amount } from '../components/Amount';
 import { BalanceColumns } from '../components/BalanceColumns';
 import { CountUpAmount } from '../components/CountUpAmount';
@@ -24,10 +24,9 @@ import { useAppData } from '../hooks/useAppData';
 import { CATEGORY_COLORS, formatDateTime } from '../lib/constants';
 
 export function OverviewPage() {
-  const { items, rates, loading, error, hidden, setHidden, ratesRefreshing, reload } = useAppData();
-  const router = useIonRouter();
+  const { items, rates, loading, error, hidden, setHidden, ratesRefreshing } = useAppData();
+  const navigate = useNavigate();
   const [creating, setCreating] = useState<CreateRequest | null>(null);
-  const [pageEl, setPageEl] = useState<HTMLDivElement | null>(null);
 
   const summary = useMemo(() => summarize(items, rates), [items, rates]);
   const fxStatus = fxStatusFor(
@@ -38,7 +37,7 @@ export function OverviewPage() {
   const fetchedAt = latestFetchedAt(rates);
   const hasForeign = summary.items.some((i) => i.currency !== 'TWD');
 
-  const openCategory = (category: Category) => router.push(`/overview/${category}`, 'forward');
+  const openCategory = (category: Category) => navigate(`/overview/${category}`);
 
   const section = (kind: ItemKind, categories: readonly Category[]) => (
     <section className="list-group" aria-labelledby={`group-${kind}`}>
@@ -77,26 +76,18 @@ export function OverviewPage() {
 
   return (
     <Page
-      ref={setPageEl}
       title="資產總覽"
       largeTitle
-      onRefresh={reload}
-      fixed={
-        <IonFab slot="fixed" vertical="bottom" horizontal="end" className="fab">
-          <IonFabButton aria-label="新增項目" onClick={() => setCreating({ kind: 'asset' })}>
-            <PlusIcon size={24} />
-          </IonFabButton>
-        </IonFab>
-      }
       end={
-        <IonButton
-          fill="clear"
+        <button
+          type="button"
+          className="icon-button"
           aria-label={hidden ? '顯示金額' : '隱藏金額'}
           aria-pressed={!hidden}
           onClick={() => setHidden(!hidden)}
         >
           {hidden ? <EyeOffIcon size={22} /> : <EyeIcon size={22} />}
-        </IonButton>
+        </button>
       }
     >
       {loading ? (
@@ -139,7 +130,11 @@ export function OverviewPage() {
         </>
       )}
 
-      <ItemCreateModal request={creating} presentingElement={pageEl} onClose={() => setCreating(null)} />
+      <button type="button" className="fab" aria-label="新增項目" onClick={() => setCreating({ kind: 'asset' })}>
+        <PlusIcon size={24} />
+      </button>
+
+      <ItemCreateModal request={creating} onClose={() => setCreating(null)} />
     </Page>
   );
 }

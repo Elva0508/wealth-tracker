@@ -1,8 +1,7 @@
 /** 第二層：一個分類底下的所有項目，點項目再往下一層編輯 */
 import { CATEGORY_LABELS, type ValuedItem, isCategory, kindOf, summarize } from '@core';
-import { IonButton, useIonRouter } from '@ionic/react';
 import { useMemo, useState } from 'react';
-import { Navigate, useParams } from 'react-router-dom';
+import { Navigate, useNavigate, useParams } from 'react-router';
 import { Amount } from '../components/Amount';
 import { ChevronRightIcon, PlusIcon } from '../components/Icons';
 import { type CreateRequest, ItemCreateModal } from '../components/ItemCreateModal';
@@ -12,10 +11,9 @@ import { CATEGORY_COLORS } from '../lib/constants';
 
 export function CategoryPage() {
   const { category } = useParams();
-  const { items, rates, reload } = useAppData();
-  const router = useIonRouter();
+  const { items, rates } = useAppData();
+  const navigate = useNavigate();
   const [creating, setCreating] = useState<CreateRequest | null>(null);
-  const [pageEl, setPageEl] = useState<HTMLDivElement | null>(null);
   const summary = useMemo(() => summarize(items, rates), [items, rates]);
 
   if (!category || !isCategory(category)) return <Navigate to="/overview" replace />;
@@ -26,15 +24,18 @@ export function CategoryPage() {
 
   return (
     <Page
-      ref={setPageEl}
       title={CATEGORY_LABELS[category]}
       backHref="/overview"
       backText="總覽"
-      onRefresh={reload}
       end={
-        <IonButton aria-label="新增項目" onClick={() => setCreating({ kind, category })}>
+        <button
+          type="button"
+          className="nav-bar__button"
+          aria-label="新增項目"
+          onClick={() => setCreating({ kind, category })}
+        >
           <PlusIcon size={22} />
-        </IonButton>
+        </button>
       }
     >
       <header className="sub-hero">
@@ -56,13 +57,13 @@ export function CategoryPage() {
         <div className="list-group">
           <ul className="list">
             {list.map((v) => (
-              <ItemRow key={v.id} item={v} onOpen={() => router.push(`/overview/${category}/${v.id}`, 'forward')} />
+              <ItemRow key={v.id} item={v} onOpen={() => navigate(`/overview/${category}/${v.id}`)} />
             ))}
           </ul>
         </div>
       )}
 
-      <ItemCreateModal request={creating} presentingElement={pageEl} onClose={() => setCreating(null)} />
+      <ItemCreateModal request={creating} onClose={() => setCreating(null)} />
     </Page>
   );
 }

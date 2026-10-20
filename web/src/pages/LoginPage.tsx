@@ -1,4 +1,3 @@
-import { IonContent, IonPage } from '@ionic/react';
 import { type FormEvent, useState } from 'react';
 import { supabase } from '../lib/supabase';
 
@@ -46,67 +45,57 @@ export function LoginPage() {
   }
 
   return (
-    <IonPage>
-      <IonContent>
-        <div className="auth">
-          <form className="card auth__card form" onSubmit={submit}>
-            <h1>{TITLES[mode]}</h1>
-            <label className="field">
-              電子郵件
-              <input
-                type="email"
-                autoComplete="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-            </label>
-            {mode !== 'forgot' && (
-              <label className="field">
-                密碼
-                <input
-                  type="password"
-                  autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
-                  required
-                  minLength={8}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-              </label>
-            )}
-            {error && (
-              <p className="field__error" role="alert">
-                {error}
-              </p>
-            )}
-            {info && (
-              <p className="notice" role="status">
-                {info}
-              </p>
-            )}
-            <button type="submit" className="btn btn--primary" disabled={busy}>
-              {busy ? '處理中…' : TITLES[mode]}
+    <div className="auth">
+      <form className="card auth__card form" onSubmit={submit}>
+        <h1>{TITLES[mode]}</h1>
+        <label className="field">
+          電子郵件
+          <input type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+        </label>
+        {mode !== 'forgot' && (
+          <label className="field">
+            密碼
+            <input
+              type="password"
+              autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
+              required
+              minLength={8}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+          </label>
+        )}
+        {error && (
+          <p className="field__error" role="alert">
+            {error}
+          </p>
+        )}
+        {info && (
+          <p className="notice" role="status">
+            {info}
+          </p>
+        )}
+        <button type="submit" className="btn btn--primary" disabled={busy}>
+          {busy ? '處理中…' : TITLES[mode]}
+        </button>
+        <div className="auth__links">
+          {mode !== 'login' && (
+            <button type="button" className="link-button" onClick={() => setMode('login')}>
+              回到登入
             </button>
-            <div className="auth__links">
-              {mode !== 'login' && (
-                <button type="button" className="link-button" onClick={() => setMode('login')}>
-                  回到登入
-                </button>
-              )}
-              {mode === 'login' && (
-                <>
-                  <button type="button" className="link-button" onClick={() => setMode('signup')}>
-                    建立帳號
-                  </button>
-                  <button type="button" className="link-button" onClick={() => setMode('forgot')}>
-                    忘記密碼
-                  </button>
-                </>
-              )}
-            </div>
-          </form>
+          )}
+          {mode === 'login' && (
+            <>
+              <button type="button" className="link-button" onClick={() => setMode('signup')}>
+                建立帳號
+              </button>
+              <button type="button" className="link-button" onClick={() => setMode('forgot')}>
+                忘記密碼
+              </button>
+            </>
+          )}
         </div>
-      </IonContent>
-    </IonPage>
+      </form>
+    </div>
   );
 }

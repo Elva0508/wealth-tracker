@@ -46,27 +46,6 @@
   --tabbar-height: 54px;
   --tabbar-gap: max(8px, calc(env(safe-area-inset-bottom) - 12px));
 
-  /* Ionic 主題 */
-  --ion-font-family: var(--font-body);
-  --ion-background-color: var(--bg);
-  --ion-background-color-rgb: 243, 239, 230;
-  --ion-text-color: var(--ink);
-  --ion-text-color-rgb: 42, 46, 41;
-  --ion-toolbar-background: var(--bg);
-  --ion-toolbar-color: var(--ink);
-  --ion-toolbar-border-color: var(--hairline);
-  --ion-color-primary: #4f6f52;
-  --ion-color-primary-rgb: 79, 111, 82;
-  --ion-color-primary-contrast: #ffffff;
-  --ion-color-primary-contrast-rgb: 255, 255, 255;
-  --ion-color-primary-shade: #46624a;
-  --ion-color-primary-tint: #617d63;
-  --ion-color-danger: #a33a2a;
-  --ion-color-danger-rgb: 163, 58, 42;
-  --ion-color-danger-contrast: #ffffff;
-  --ion-color-danger-contrast-rgb: 255, 255, 255;
-  --ion-color-danger-shade: #8f3325;
-  --ion-color-danger-tint: #ac4e3f;
 
   color-scheme: light;
 }
@@ -94,9 +73,14 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
-ion-content {
-  /* 紙底：一層很淡的紙張顆粒，加上兩片很淡的暖色光暈。都是靜態背景圖，換頁時不需要重算 */
-  --background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.3 0 0 0 0 0.25 0 0 0 0 0.15 0 0 0 0.05 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
+/* 紙底：一層很淡的紙張顆粒，加上兩片很淡的暖色光暈。固定在最底層，都是靜態圖，捲動和換頁時不需要重算 */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.3 0 0 0 0 0.25 0 0 0 0 0.15 0 0 0 0.05 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
     radial-gradient(90% 55% at 0% 0%, rgb(169 194 164 / 0.28), transparent 70%),
     radial-gradient(80% 50% at 100% 100%, rgb(221 168 140 / 0.22), transparent 70%), var(--bg);
 }
@@ -210,18 +194,60 @@ textarea {
   border-radius: 2px;
 }
 
-/* ---------- Ionic 外框 ---------- */
+/* ---------- 外框與換頁 ---------- */
+.layout {
+  min-height: 100dvh;
+  /* 換頁時新頁面從畫面外滑進來，不能讓整頁出現水平捲軸 */
+  overflow-x: clip;
+}
+
+.page {
+  min-height: 100dvh;
+}
+
+/* 往下一層：從右邊滑入，左緣帶一點陰影 */
+.page--push {
+  animation: page-push 0.38s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+}
+
+/* 回上一層：上一頁從左邊滑回 */
+.page--pop {
+  animation: page-pop 0.32s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+}
+
+@keyframes page-push {
+  from {
+    transform: translateX(100%);
+    box-shadow: -12px 0 32px rgb(70 58 36 / 0.12);
+  }
+  to {
+    transform: none;
+    box-shadow: none;
+  }
+}
+
+@keyframes page-pop {
+  from {
+    transform: translateX(-28%);
+    opacity: 0.7;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
 .page-body {
   max-width: 640px;
   margin: 0 auto;
   padding: 20px 16px calc(var(--tabbar-height) + var(--tabbar-gap) + 40px);
 }
 
-/* 第一層：大標題跟著內容捲動，上方不出現標題列 */
-.content--large-title .page-body {
+.page-body--large-title {
   padding-top: 4px;
 }
 
+/* 第一層：大標題跟著內容捲動，上方不出現標題列 */
 .large-title {
   max-width: 640px;
   margin: 0 auto;
@@ -238,133 +264,364 @@ textarea {
   letter-spacing: 0.01em;
 }
 
-.large-title__end ion-button {
-  --color: var(--sage-700);
-  margin: 0 -8px 0 0;
+.large-title__end .icon-button {
+  margin-right: -8px;
 }
 
 .status-bar-scrim {
+  position: fixed;
   top: 0;
   left: 0;
   right: 0;
   height: env(safe-area-inset-top);
   background: var(--bg);
-  z-index: 10;
+  z-index: 20;
 }
 
-/* 下一層的標題列：實心背景色，捲動的內容不會透上來 */
-ion-header.page-header ion-toolbar {
-  --background: var(--bg);
+/* 下一層的標題列：固定在上方、實心背景色，捲動的內容不會透上來 */
+.nav-bar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-height: calc(env(safe-area-inset-top) + 48px);
+  padding: env(safe-area-inset-top) 8px 0;
+  background: var(--bg);
+  border-bottom: 0.5px solid var(--hairline);
 }
 
-.page-body--modal {
-  padding-top: 20px;
-  padding-bottom: calc(32px + env(safe-area-inset-bottom));
+.nav-bar__title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 60vw;
 }
 
-ion-toolbar ion-button,
-ion-back-button {
-  --color: var(--sage-700);
+.nav-bar__side {
+  display: flex;
+  align-items: center;
+  min-width: 0;
 }
 
-/* 底部浮動毛玻璃導覽列 */
-ion-tab-bar.glass-tabbar {
-  position: absolute;
+.nav-bar__side--end {
+  justify-content: flex-end;
+}
+
+.nav-bar__back,
+.nav-bar__button {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 6px;
+  border: none;
+  background: none;
+  color: var(--sage-700);
+  font-size: 17px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.nav-bar__button {
+  justify-content: center;
+}
+
+.nav-bar__back:active,
+.nav-bar__button:active,
+.icon-button:active {
+  opacity: 0.4;
+}
+
+.icon-button {
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 22px;
+  background: none;
+  color: var(--sage-700);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex: none;
+}
+
+/* 底部浮動毛玻璃導覽列：固定不動，是唯一真正做模糊的地方 */
+.tabbar {
+  position: fixed;
   left: 16px;
   right: 16px;
   bottom: var(--tabbar-gap);
+  z-index: 30;
   max-width: 420px;
   height: var(--tabbar-height);
   margin: 0 auto;
-  padding: 0 4px;
-  contain: none;
+  padding: 5px 4px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   border: 1px solid var(--glass-edge);
   border-radius: calc(var(--tabbar-height) / 2);
   /* 和背景同色、幾乎不透明，只透一點點模糊，文字捲過去不會和圖示疊在一起 */
-  --background: rgb(246 243 236 / 0.9);
-  --border: 0;
-  --color: var(--ink-quiet);
-  --color-selected: var(--sage-800);
+  background: rgb(246 243 236 / 0.9);
   -webkit-backdrop-filter: blur(20px) saturate(1.5);
   backdrop-filter: blur(20px) saturate(1.5);
   box-shadow:
     0 8px 24px rgb(70 58 36 / 0.12),
     0 1px 4px rgb(70 58 36 / 0.06);
-  z-index: 10;
 }
 
-/* 換頁或滑動返回進行中，暫時不能切換分頁（見 AppTabs） */
-body.nav-busy ion-tab-bar.glass-tabbar {
-  pointer-events: none;
+.tabbar__link {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  border-radius: calc((var(--tabbar-height) - 10px) / 2);
+  font-size: 10px;
+  color: var(--ink-quiet);
+  text-decoration: none;
+  transition: background-color 0.25s ease;
+}
+
+.tabbar__link.active {
+  background: rgb(79 111 82 / 0.12);
+  color: var(--sage-800);
+  font-weight: 700;
 }
 
 /* 導覽列後方從下往上淡出的背景色 */
 .tabbar-scrim {
-  position: absolute;
+  position: fixed;
   left: 0;
   right: 0;
   bottom: 0;
+  z-index: 29;
   height: calc(var(--tabbar-height) + var(--tabbar-gap) + 16px);
   background: linear-gradient(to top, var(--bg) 60%, rgb(243 239 230 / 0));
   pointer-events: none;
-  z-index: 9;
-}
-
-ion-tab-bar.glass-tabbar ion-tab-button {
-  --background: transparent;
-  --ripple-color: transparent;
-  margin: 5px 0;
-  border-radius: calc((var(--tabbar-height) - 10px) / 2);
-  font-size: 10px;
-  transition: background-color 0.25s ease;
-}
-
-ion-tab-bar.glass-tabbar ion-tab-button.tab-selected {
-  background: rgb(79 111 82 / 0.12);
-  font-weight: 700;
-}
-
-ion-tab-bar.glass-tabbar ion-label {
-  margin-top: 2px;
 }
 
 /* 浮動新增鍵在導覽列上方 */
-ion-fab.fab {
-  right: 20px;
+.fab {
+  position: fixed;
+  right: max(20px, env(safe-area-inset-right));
   bottom: calc(var(--tabbar-height) + var(--tabbar-gap) + 20px);
-}
-
-ion-fab.fab ion-fab-button {
-  --background: var(--sage-700);
-  --background-activated: var(--sage-800);
-  --border-radius: 50%;
-  --box-shadow: 0 8px 20px rgb(59 86 64 / 0.3);
+  z-index: 31;
   width: 56px;
   height: 56px;
+  border: none;
+  border-radius: 50%;
+  background: var(--sage-700);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8px 20px rgb(59 86 64 / 0.3);
+  cursor: pointer;
+  transition: transform 0.12s ease;
 }
 
-.glass-modal {
-  --border-radius: 14px;
+.fab:active {
+  transform: scale(0.92);
 }
 
-.glass-modal ion-content {
-  --background: var(--bg);
+.task-notice {
+  margin: 0 0 20px;
+  padding: 12px 16px;
+  border-radius: var(--radius-sm);
+  background: var(--sage-100);
+  color: var(--sage-800);
+  font-size: 14px;
 }
 
-ion-segment {
-  --background: rgb(70 58 36 / 0.07);
+.task-notice--error {
+  background: var(--clay-100);
+  color: var(--danger);
 }
 
-ion-segment-button {
-  --indicator-color: var(--surface);
-  --color: var(--ink-muted);
-  --color-checked: var(--sage-800);
+/* 分段按鈕（資產／負債） */
+.segmented {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 2px;
+  padding: 2px;
+  background: rgb(70 58 36 / 0.07);
+  border-radius: 10px;
+}
+
+.segmented button {
   min-height: 34px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink-muted);
   font-size: 15px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
 }
 
-ion-toggle {
-  --track-background-checked: var(--sage-600);
+.segmented button[aria-pressed='true'] {
+  background: var(--surface);
+  color: var(--sage-800);
+  font-weight: 700;
+  box-shadow: 0 1px 3px rgb(70 58 36 / 0.12);
+}
+
+/* iOS 樣式開關 */
+.switch {
+  appearance: none;
+  -webkit-appearance: none;
+  flex: none;
+  position: relative;
+  width: 51px;
+  height: 31px;
+  margin: 0;
+  border-radius: 16px;
+  background: rgb(70 58 36 / 0.14);
+  cursor: pointer;
+  transition: background-color 0.25s ease;
+}
+
+.switch::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 27px;
+  height: 27px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.15);
+  transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.switch:checked {
+  background: var(--sage-600);
+}
+
+.switch:checked::after {
+  transform: translateX(20px);
+}
+
+.switch:disabled {
+  opacity: 0.5;
+}
+
+/* ---------- 底部彈出面板 ---------- */
+.sheet {
+  border: none;
+  padding: 0;
+  margin: auto auto 0;
+  width: 100%;
+  max-width: 560px;
+  max-height: 92dvh;
+  border-radius: 14px 14px 0 0;
+  background: var(--bg);
+  color: var(--ink);
+  overscroll-behavior: contain;
+  box-shadow: 0 -8px 32px rgb(70 58 36 / 0.12);
+  animation: sheet-in 0.4s cubic-bezier(0.2, 0.9, 0.25, 1) both;
+}
+
+.sheet::backdrop {
+  background: rgb(40 44 38 / 0.4);
+  animation: backdrop-in 0.3s ease both;
+}
+
+.sheet--closing {
+  animation: sheet-out 0.25s cubic-bezier(0.4, 0, 1, 1) both;
+}
+
+.sheet--closing::backdrop {
+  animation: backdrop-out 0.25s ease both;
+}
+
+@keyframes sheet-in {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: none;
+  }
+}
+
+@keyframes sheet-out {
+  from {
+    transform: translateY(var(--sheet-from, 0px));
+  }
+  to {
+    transform: translateY(100%);
+  }
+}
+
+@keyframes backdrop-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes backdrop-out {
+  to {
+    opacity: 0;
+  }
+}
+
+.sheet__head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 8px 16px 0;
+  background: var(--bg);
+  border-bottom: 0.5px solid var(--hairline);
+  touch-action: none;
+  cursor: grab;
+}
+
+.sheet__grip {
+  width: 36px;
+  height: 5px;
+  margin: 0 auto 4px;
+  border-radius: 3px;
+  background: rgb(70 58 36 / 0.2);
+}
+
+.sheet__bar {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  min-height: 44px;
+}
+
+.sheet__bar h2 {
+  font-size: 17px;
+}
+
+.sheet__bar .text-button {
+  justify-self: start;
+  font-size: 17px;
+}
+
+.sheet__content {
+  padding: 20px 16px calc(32px + env(safe-area-inset-bottom));
+}
+
+@media (min-width: 900px) {
+  .sheet {
+    margin: auto;
+    border-radius: 14px;
+  }
+
+  .sheet__grip {
+    display: none;
+  }
 }
 
 /* ---------- 分組清單（iOS inset grouped） ---------- */
@@ -962,11 +1219,16 @@ ion-toggle {
   .block__label,
   .list-row--button,
   .btn,
-  ion-tab-bar.glass-tabbar ion-tab-button {
+  .tabbar__link,
+  .switch,
+  .switch::after {
     transition: none;
   }
 
-  .columns__detail {
+  .columns__detail,
+  .page,
+  .sheet,
+  .sheet::backdrop {
     animation: none;
   }
 }

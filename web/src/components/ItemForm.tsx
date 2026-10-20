@@ -18,7 +18,6 @@ import {
   rateFor,
   validateItemInput,
 } from '@core';
-import { IonLabel, IonSegment, IonSegmentButton } from '@ionic/react';
 import { type FormEvent, type ReactNode, useMemo, useState } from 'react';
 import { useAppData } from '../hooks/useAppData';
 import * as api from '../lib/api';
@@ -99,14 +98,13 @@ export function ItemForm({ item, initialKind = 'asset', initialCategory, onSaved
   return (
     <form className="form" onSubmit={submit} noValidate>
       {!item && (
-        <IonSegment value={kind} onIonChange={(e) => switchKind(e.detail.value as ItemKind)}>
-          <IonSegmentButton value="asset">
-            <IonLabel>資產</IonLabel>
-          </IonSegmentButton>
-          <IonSegmentButton value="liability">
-            <IonLabel>負債</IonLabel>
-          </IonSegmentButton>
-        </IonSegment>
+        <div className="segmented" role="group" aria-label="類型">
+          {(['asset', 'liability'] as const).map((k) => (
+            <button key={k} type="button" aria-pressed={kind === k} onClick={() => switchKind(k)}>
+              {k === 'asset' ? '資產' : '負債'}
+            </button>
+          ))}
+        </div>
       )}
 
       <fieldset className="list-group">

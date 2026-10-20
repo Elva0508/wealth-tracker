@@ -1,7 +1,7 @@
 import { type BackupFile, type BackupPreview, validateBackup } from '@core';
-import { useIonAlert } from '@ionic/react';
 import { type ChangeEvent, useState } from 'react';
 import { Page } from '../../components/Page';
+import { TaskNotice } from '../../components/TaskNotice';
 import { useAppData } from '../../hooks/useAppData';
 import { useTask } from '../../hooks/useTask';
 import * as api from '../../lib/api';
@@ -9,8 +9,7 @@ import { downloadFile, fileStamp } from '../../lib/download';
 
 export function BackupPage() {
   const { reload } = useAppData();
-  const { busy, run, notify } = useTask();
-  const [presentAlert] = useIonAlert();
+  const { busy, run, notify, message } = useTask();
   const [pending, setPending] = useState<{ backup: BackupFile; preview: BackupPreview } | null>(null);
   const [errors, setErrors] = useState<string[]>([]);
 
@@ -50,18 +49,13 @@ export function BackupPage() {
       notify(`還原完成：${result.items} 個項目、${result.snapshots} 筆快照。還原前的資料已自動下載。`);
     });
 
-  const confirmRestore = () =>
-    presentAlert({
-      header: '用這份備份覆蓋目前資料？',
-      message: '還原前會先自動下載一份目前的資料。',
-      buttons: [
-        { text: '取消', role: 'cancel' },
-        { text: '還原', role: 'destructive', handler: () => void restore() },
-      ],
-    });
+  const confirmRestore = () => {
+    if (window.confirm('用這份備份覆蓋目前資料？還原前會先自動下載一份目前的資料。')) void restore();
+  };
 
   return (
     <Page title="備份與還原" backHref="/settings" backText="設定">
+      {message && <TaskNotice message={message} />}
       <section className="list-group">
         <div className="list">
           <button

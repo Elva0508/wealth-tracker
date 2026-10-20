@@ -84,9 +84,7 @@ export function BalanceColumns({ summary, onOpenCategory }: Props) {
             負債比資產多 <Amount value={-summary.netWorth} />
           </span>
         ) : (
-          bars.liabilityRatio !== null && (
-            <span className="pill">負債佔資產 {Math.round(bars.liabilityRatio)}%</span>
-          )
+          bars.liabilityRatio !== null && <span className="pill">負債佔資產 {Math.round(bars.liabilityRatio)}%</span>
         )}
       </div>
 

@@ -25,7 +25,7 @@ wealth-tracker/
 │  ├─ migrations/             資料表、RLS、資料庫函式
 │  ├─ setup/schedule.sql      排程設定（部署後執行一次）
 │  └─ tests/                  資料庫行為測試（SQL）
-└─ web/                       React + Ionic + TypeScript + Vite PWA
+└─ web/                       React + React Router + TypeScript + Vite PWA
    └─ src/
       ├─ lib/api.ts           所有資料庫存取
       ├─ hooks/               登入狀態、共用資料

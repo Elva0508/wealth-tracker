@@ -1,16 +1,18 @@
 import { CATEGORY_LABELS, dec, formatMoney } from '@core';
 import { Page } from '../../components/Page';
+import { TaskNotice } from '../../components/TaskNotice';
 import { useAppData } from '../../hooks/useAppData';
 import { useTask } from '../../hooks/useTask';
 import * as api from '../../lib/api';
 
 export function ArchivedPage() {
   const { items, reload } = useAppData();
-  const { busy, run, notify } = useTask();
+  const { busy, run, notify, message } = useTask();
   const archived = items.filter((i) => i.status === 'archived');
 
   return (
     <Page title="已封存項目" backHref="/settings" backText="設定">
+      {message && <TaskNotice message={message} />}
       {archived.length === 0 ? (
         <p className="page-message">沒有已封存的項目。</p>
       ) : (
