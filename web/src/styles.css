@@ -515,33 +515,35 @@ textarea {
   opacity: 0.5;
 }
 
-/* ---------- 底部彈出面板 ---------- */
+/* ---------- 滿版彈出面板 ---------- */
 .sheet {
-  border: none;
-  padding: 0;
-  margin: auto auto 0;
+  position: fixed;
+  inset: 0;
   width: 100%;
-  max-width: 560px;
-  max-height: 92dvh;
-  border-radius: 14px 14px 0 0;
+  max-width: none;
+  height: 100dvh;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 0;
   background: var(--bg);
   color: var(--ink);
+  overflow-y: auto;
   overscroll-behavior: contain;
-  box-shadow: 0 -8px 32px rgb(70 58 36 / 0.12);
-  animation: sheet-in 0.4s cubic-bezier(0.2, 0.9, 0.25, 1) both;
+  will-change: transform;
+  animation: sheet-in 0.5s cubic-bezier(0.32, 0.72, 0, 1) backwards;
 }
 
+/* 往下拉時背景遮罩跟著變淡（--sheet-progress 由 Sheet 設定，0 到 1） */
 .sheet::backdrop {
   background: rgb(40 44 38 / 0.4);
+  opacity: calc(1 - var(--sheet-progress, 0));
   animation: backdrop-in 0.3s ease both;
 }
 
-.sheet--closing {
-  animation: sheet-out 0.25s cubic-bezier(0.4, 0, 1, 1) both;
-}
-
 .sheet--closing::backdrop {
-  animation: backdrop-out 0.25s ease both;
+  animation: backdrop-out 0.3s ease both;
 }
 
 @keyframes sheet-in {
@@ -550,15 +552,6 @@ textarea {
   }
   to {
     transform: none;
-  }
-}
-
-@keyframes sheet-out {
-  from {
-    transform: translateY(var(--sheet-from, 0px));
-  }
-  to {
-    transform: translateY(100%);
   }
 }
 
@@ -578,11 +571,10 @@ textarea {
   position: sticky;
   top: 0;
   z-index: 1;
-  padding: 8px 16px 0;
+  padding: calc(env(safe-area-inset-top) + 6px) 16px 0;
   background: var(--bg);
   border-bottom: 0.5px solid var(--hairline);
   touch-action: none;
-  cursor: grab;
 }
 
 .sheet__grip {
@@ -610,13 +602,26 @@ textarea {
 }
 
 .sheet__content {
+  max-width: 640px;
+  margin: 0 auto;
   padding: 20px 16px calc(32px + env(safe-area-inset-bottom));
 }
 
+/* 電腦版：置中的卡片，不滿版 */
 @media (min-width: 900px) {
   .sheet {
-    margin: auto;
+    inset: auto;
+    top: 50%;
+    left: 50%;
+    width: 560px;
+    height: auto;
+    max-height: 88dvh;
     border-radius: 14px;
+    translate: -50% -50%;
+  }
+
+  .sheet__head {
+    padding-top: 8px;
   }
 
   .sheet__grip {
