@@ -12,7 +12,7 @@
  */
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { NavLink, useLocation, useNavigate, useNavigationType, useRoutes } from 'react-router';
-import { goBack, takePendingBack } from '../lib/navigation';
+import { continueTabSwitch, goBack, pendingTabTarget, switchTab, takePendingBack } from '../lib/navigation';
 import { pageRoutes } from '../routes';
 import { ChartIcon, ListIcon, LoanIcon, SettingsIcon } from './Icons';
 
@@ -52,7 +52,8 @@ export function AppLayout() {
   const location = useLocation();
   const navigationType = useNavigationType();
   const navigate = useNavigate();
-  const to = location.pathname;
+  // 切換分頁時會先退回第一筆紀錄再換掉它，途中直接顯示目標分頁
+  const to = pendingTabTarget() ?? location.pathname;
 
   // 網址一變就決定這次的動畫；同一頁重新渲染時沿用，不會打斷播到一半的動畫
   const transition = useRef({ id: 0, path: to, from: to, animation: 'none' as Animation });
@@ -72,6 +73,8 @@ export function AppLayout() {
         animation = takePendingBack() === 'animate' ? 'pop' : 'none';
       }
     }
+    // 其他 POP（例如切換分頁時退回第一筆）也要把記號取走，免得留到下一次
+    if (navigationType === 'POP') takePendingBack();
     transition.current = { id: transition.current.id + 1, path: to, from, animation };
   }
   const { id, from, animation } = transition.current;
@@ -83,6 +86,11 @@ export function AppLayout() {
     const timer = window.setTimeout(() => setFinishedId(id), PAGE_DURATION_MS + 150);
     return () => window.clearTimeout(timer);
   }, [animating, id]);
+
+  // 切換分頁：退回第一筆紀錄後換成目標分頁，再清掉「下一頁」的紀錄
+  useLayoutEffect(() => {
+    continueTabSwitch(navigate, location.pathname);
+  }, [location, navigate]);
 
   // 換頁後清掉滑動手勢留下的位移
   const layoutRef = useRef<HTMLDivElement>(null);
@@ -254,7 +262,16 @@ export function AppLayout() {
       <div className="tabbar-scrim" aria-hidden="true" />
       <nav className="tabbar" aria-label="主要導覽">
         {LINKS.map((link) => (
-          <NavLink key={link.to} to={link.to} className="tabbar__link">
+          <NavLink
+            key={link.to}
+            to={link.to}
+            replace
+            className="tabbar__link"
+            onClick={(e) => {
+              e.preventDefault();
+              switchTab(navigate, link.to, location.pathname);
+            }}
+          >
             {link.icon}
             <span>{link.label}</span>
           </NavLink>
