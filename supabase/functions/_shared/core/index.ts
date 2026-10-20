@@ -11,3 +11,4 @@ export * from './snapshot.ts';
 export * from './validation.ts';
 export * from './export.ts';
 export * from './backup.ts';
+export * from './loan.ts';

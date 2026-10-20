@@ -20,8 +20,8 @@ export const ONE: Dec = FACTOR;
 
 const DECIMAL_RE = /^([+-])?(\d+)(?:\.(\d+))?$/;
 
-/** 整數除法並四捨五入（0.5 遠離 0） */
-function roundDiv(numerator: bigint, denominator: bigint): bigint {
+/** 整數除法並四捨五入（0.5 遠離 0）。需要自訂精度的計算（例如貸款還款）也會用到 */
+export function roundDiv(numerator: bigint, denominator: bigint): bigint {
   if (denominator === 0n) throw new RangeError('除數不能為 0');
   const negative = (numerator < 0n) !== (denominator < 0n);
   const n = numerator < 0n ? -numerator : numerator;
