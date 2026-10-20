@@ -1,5 +1,4 @@
 /** 線條圖示。全部繼承文字顏色（currentColor），裝飾用途所以 aria-hidden */
-import type { Category } from '@core';
 import type { ReactNode } from 'react';
 
 type IconProps = { size?: number };
@@ -43,15 +42,15 @@ export const PlusIcon = (p: IconProps) => (
   </Svg>
 );
 
-export const CloseIcon = (p: IconProps) => (
+export const ChevronRightIcon = (p: IconProps) => (
   <Svg {...p} strokeWidth={2}>
-    <path d="M6 6l12 12M18 6L6 18" />
+    <path d="M9 6l6 6-6 6" />
   </Svg>
 );
 
-export const ChevronDownIcon = (p: IconProps) => (
-  <Svg {...p} strokeWidth={2}>
-    <path d="M6 9l6 6 6-6" />
+export const CheckIcon = (p: IconProps) => (
+  <Svg {...p} strokeWidth={2.4}>
+    <path d="M5 12.5l4.5 4.5L19 7.5" />
   </Svg>
 );
 
@@ -83,39 +82,3 @@ export const SettingsIcon = (p: IconProps) => (
     <circle cx="18" cy="18" r="2" />
   </Svg>
 );
-
-export const BankIcon = (p: IconProps) => (
-  <Svg {...p}>
-    <path d="M3 10l9-6 9 6" />
-    <path d="M5 10v8M19 10v8M9 10v8M15 10v8M3 20h18" />
-  </Svg>
-);
-
-export const BoxIcon = (p: IconProps) => (
-  <Svg {...p}>
-    <rect x="4" y="7" width="16" height="13" rx="2" />
-    <path d="M9 7V5h6v2" />
-  </Svg>
-);
-
-export const CardIcon = (p: IconProps) => (
-  <Svg {...p}>
-    <rect x="3" y="5" width="18" height="14" rx="2" />
-    <path d="M3 10h18M7 15h4" />
-  </Svg>
-);
-
-export function CategoryIcon({ category, size }: { category: Category; size?: number }) {
-  switch (category) {
-    case 'cash_bank':
-      return <BankIcon size={size} />;
-    case 'securities':
-      return <ChartIcon size={size} />;
-    case 'other_asset':
-      return <BoxIcon size={size} />;
-    case 'loan':
-      return <LoanIcon size={size} />;
-    case 'daily_liability':
-      return <CardIcon size={size} />;
-  }
-}

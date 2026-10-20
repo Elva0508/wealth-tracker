@@ -29,7 +29,7 @@ const DARK_CATEGORIES = new Set<string>(['securities', 'loan']);
 
 interface Props {
   summary: BalanceSummary;
-  /** 點區塊後在詳細卡片按「展開明細」 */
+  /** 點區塊後在詳細卡片按「查看明細」 */
   onOpenCategory: (category: Category) => void;
 }
 
@@ -123,7 +123,7 @@ export function BalanceColumns({ summary, onOpenCategory }: Props) {
                   setSelected(null);
                 }}
               >
-                展開明細
+                查看明細
               </button>
             )}
           </span>
