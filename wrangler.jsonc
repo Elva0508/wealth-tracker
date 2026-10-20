@@ -1,0 +1,9 @@
+{
+  // 必須和 Cloudflare 上的 Worker 名稱完全一樣
+  "name": "wealth-tracker",
+  "compatibility_date": "2026-10-01",
+  "assets": {
+    "directory": "./web/dist",
+    "not_found_handling": "single-page-application"
+  }
+}
