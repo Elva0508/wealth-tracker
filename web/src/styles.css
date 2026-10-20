@@ -865,6 +865,92 @@ textarea {
   font-size: 15px;
 }
 
+/* ---------- 淨資產趨勢 ---------- */
+.trend {
+  margin-bottom: 28px;
+  padding: 16px 16px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.trend__head h2 {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-quiet);
+}
+
+.trend__readout {
+  margin: 4px 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.trend__value {
+  font-family: var(--font-number);
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.trend__plot {
+  margin: 0 -4px;
+  /* 水平拖動交給讀數，垂直仍可以捲動頁面 */
+  touch-action: pan-y;
+}
+
+.trend__plot svg {
+  display: block;
+  overflow: visible;
+}
+
+.trend__grid {
+  stroke: var(--hairline);
+  stroke-width: 1;
+}
+
+.trend__tick {
+  font-family: var(--font-number);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  fill: var(--ink-quiet);
+}
+
+.trend__line {
+  fill: none;
+  stroke: var(--sage-700);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.trend__area {
+  fill: var(--sage-700);
+  opacity: 0.1;
+}
+
+.trend__cursor {
+  stroke: var(--ink-faint);
+  stroke-width: 1;
+}
+
+/* 端點：2px 背景色外圈，壓在線上也看得清楚 */
+.trend__dot {
+  fill: var(--sage-700);
+  stroke: var(--surface);
+  stroke-width: 2;
+}
+
+.segmented--small {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.segmented--small button {
+  min-height: 28px;
+  font-size: 13px;
+}
+
 /* ---------- 還款表 ---------- */
 .schedule {
   list-style: none;

@@ -2,8 +2,26 @@ import type { Category } from '@core';
 
 /** 臺灣銀行有牌告的幣別，加上新台幣。其他幣別由備援來源提供 */
 export const CURRENCIES = [
-  'TWD', 'USD', 'JPY', 'EUR', 'CNY', 'HKD', 'GBP', 'AUD', 'CAD', 'SGD',
-  'CHF', 'NZD', 'KRW', 'THB', 'SEK', 'ZAR', 'PHP', 'IDR', 'VND', 'MYR',
+  'TWD',
+  'USD',
+  'JPY',
+  'EUR',
+  'CNY',
+  'HKD',
+  'GBP',
+  'AUD',
+  'CAD',
+  'SGD',
+  'CHF',
+  'NZD',
+  'KRW',
+  'THB',
+  'SEK',
+  'ZAR',
+  'PHP',
+  'IDR',
+  'VND',
+  'MYR',
 ] as const;
 
 /** 平衡長條與圖例的顏色；同一畫面的顏色除了色相也要有明暗差，色弱也分得出來 */

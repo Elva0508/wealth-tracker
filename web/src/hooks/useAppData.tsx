@@ -35,6 +35,8 @@ interface AppData {
   loans: LoanView[];
   /** 今天（台灣時間），貸款餘額算到這一天 */
   today: string;
+  /** 每日快照（淨資產趨勢圖用） */
+  snapshots: api.SnapshotPoint[];
   rates: RateTable;
   settings: api.Settings | null;
   loading: boolean;
@@ -52,6 +54,7 @@ const AppDataContext = createContext<AppData | null>(null);
 export function AppDataProvider({ children }: { children: ReactNode }) {
   const [rawItems, setItems] = useState<api.Item[]>([]);
   const [loanData, setLoanData] = useState<api.LoanData>(EMPTY_LOANS);
+  const [snapshots, setSnapshots] = useState<api.SnapshotPoint[]>([]);
   const [rateRows, setRateRows] = useState<FxRow[]>([]);
   const [settings, setSettings] = useState<api.Settings | null>(null);
   const [loading, setLoading] = useState(true);
@@ -61,14 +64,16 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
 
   const reload = useCallback(async () => {
     try {
-      const [nextItems, nextRates, nextLoans] = await Promise.all([
+      const [nextItems, nextRates, nextLoans, nextSnapshots] = await Promise.all([
         api.fetchItems(),
         api.fetchRates(),
         api.fetchLoans(),
+        api.fetchSnapshots(),
       ]);
       setItems(nextItems);
       setRateRows(nextRates);
       setLoanData(nextLoans);
+      setSnapshots(nextSnapshots);
       setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -80,16 +85,18 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
     (async () => {
       try {
-        const [nextItems, nextRates, nextSettings, nextLoans] = await Promise.all([
+        const [nextItems, nextRates, nextSettings, nextLoans, nextSnapshots] = await Promise.all([
           api.fetchItems(),
           api.fetchRates(),
           api.fetchSettings(),
           api.fetchLoans(),
+          api.fetchSnapshots(),
         ]);
         if (cancelled) return;
         setItems(nextItems);
         setRateRows(nextRates);
         setLoanData(nextLoans);
+        setSnapshots(nextSnapshots);
         setSettings(nextSettings);
         setHidden(nextSettings.hideAmounts);
 
@@ -178,6 +185,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     items,
     loans,
     today,
+    snapshots,
     rates,
     settings,
     loading,

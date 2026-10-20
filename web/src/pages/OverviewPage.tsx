@@ -19,12 +19,13 @@ import { BalanceColumns } from '../components/BalanceColumns';
 import { CountUpAmount } from '../components/CountUpAmount';
 import { ChevronRightIcon, EyeIcon, EyeOffIcon, PlusIcon } from '../components/Icons';
 import { type CreateRequest, ItemCreateModal } from '../components/ItemCreateModal';
+import { NetWorthTrend } from '../components/NetWorthTrend';
 import { Page } from '../components/Page';
 import { useAppData } from '../hooks/useAppData';
 import { CATEGORY_COLORS, formatDateTime } from '../lib/constants';
 
 export function OverviewPage() {
-  const { items, rates, loading, error, hidden, setHidden, ratesRefreshing } = useAppData();
+  const { items, rates, loading, error, hidden, setHidden, ratesRefreshing, snapshots } = useAppData();
   const navigate = useNavigate();
   const [creating, setCreating] = useState<CreateRequest | null>(null);
 
@@ -112,6 +113,8 @@ export function OverviewPage() {
               missing={summary.missingCurrencies}
             />
           </header>
+
+          {summary.items.length > 0 && <NetWorthTrend snapshots={snapshots} liveNetWorth={summary.netWorth} />}
 
           {summary.items.length === 0 ? (
             <div className="empty">
