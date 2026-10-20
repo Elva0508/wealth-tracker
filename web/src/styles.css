@@ -39,8 +39,18 @@
   color-scheme: light;
 }
 
-* {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
+  /* 關掉雙擊放大（保留捲動與雙指縮放）；touch-action 不會繼承，所以每個元素都要設 */
+  touch-action: manipulation;
+}
+
+html,
+body {
+  /* 滑到頂或底時不要把整個 App 拉動（iOS 16+） */
+  overscroll-behavior: none;
 }
 
 body {
@@ -812,6 +822,8 @@ textarea {
   border-radius: 28px 28px 0 0;
   background: var(--bg);
   color: var(--ink);
+  /* 面板內捲到底時，不要連帶捲動後面的頁面 */
+  overscroll-behavior: contain;
 }
 
 .sheet::backdrop {
