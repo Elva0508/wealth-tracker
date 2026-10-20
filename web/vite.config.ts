@@ -13,6 +13,11 @@ export default defineConfig({
   server: {
     // 允許讀取 web/ 以外的共用模組
     fs: { allow: ['..'] },
+    // 讓手機透過 cloudflared 臨時通道連到本機測試
+    allowedHosts: ['.trycloudflare.com'],
+  },
+  preview: {
+    allowedHosts: ['.trycloudflare.com'],
   },
   plugins: [
     react(),
