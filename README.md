@@ -1,6 +1,10 @@
-# Personal Wealth Tracker — V1a
+# Personal Wealth Tracker — V1b
 
-個人資產負債與淨資產追蹤 PWA。V1a 包含：登入、資產與負債項目（手動金額）、多幣別與自動匯率、首頁平衡長條、每日快照、匯出 CSV／Excel、完整備份與還原。
+個人資產負債與淨資產追蹤 PWA。
+
+- **V1a**：登入、資產與負債項目（手動金額）、多幣別與自動匯率、首頁平衡長條、每日快照、匯出 CSV／Excel、完整備份與還原。
+- **V1b 貸款**：還款表自動計算餘額（緩繳本息、只繳息、本息平均攤還、本金平均攤還、到期一次還本），還款方式與利率以「從哪天起」記錄（學貸每年展延再記一筆），提前還款與校正餘額，手動貸款項目一鍵轉換；首頁淨資產趨勢圖。
+- **V1c 投資**（下一階段）：證券帳戶、交易、成本計算，以及自有與貸款資金分類、利息分攤。
 
 規格文件：Personal Wealth Tracker — V1a 規格（Claude 文件）
 
@@ -18,7 +22,8 @@ wealth-tracker/
 │  │  │  ├─ validation.ts     表單檢查
 │  │  │  ├─ export.ts         CSV 與 .xlsx 產生
 │  │  │  ├─ backup.ts         備份檔格式與檢查
-│  │  │  └─ __tests__/        Vitest 測試（50 個）
+│  │  │  ├─ loan.ts           貸款還款表與餘額（V1b）
+│  │  │  └─ __tests__/        Vitest 測試（72 個）
 │  │  ├─ _shared/auth.ts      Edge Function 共用：辨識排程或使用者
 │  │  ├─ fetch-fx/            更新匯率
 │  │  └─ daily-snapshot/      每日快照
@@ -49,7 +54,7 @@ wealth-tracker/
    supabase link --project-ref <你的 project ref>
    supabase db push       # 套用 migrations/
    ```
-   不想用 CLI 的話，也可以把 `supabase/migrations/20261019000000_v1a_init.sql` 整份貼到後台 SQL Editor 執行。
+   不想用 CLI 的話，也可以把 `supabase/migrations/` 裡的 SQL 檔依檔名順序（先 `v1a_init`、再 `v1b_loans`）整份貼到後台 SQL Editor 執行。
 
 ### 2. 設定登入
 
@@ -87,7 +92,7 @@ supabase functions deploy daily-snapshot --no-verify-jwt
 
 ### 只用瀏覽器設定 Supabase（不安裝 CLI）
 
-1. **建立資料表**：後台 → SQL Editor → New query，把 `supabase/migrations/20261019000000_v1a_init.sql` 整份貼上 → Run。
+1. **建立資料表**：後台 → SQL Editor → New query，把 `supabase/migrations/20261019000000_v1a_init.sql` 整份貼上 → Run；再用同樣的方式執行 `20261021000000_v1b_loans.sql`。
 2. **設定登入網址**：同上方第 2 步。
 3. **設定密鑰**：後台 → Edge Functions → Secrets，新增 `CRON_SECRET`，值是一串夠長的亂碼（至少 32 個英數字）。
 4. **部署 Edge Functions**：後台 → Edge Functions → Deploy a new function → Via Editor：
@@ -151,10 +156,19 @@ Authentication → URL Configuration：
 Site URL：https://你的名稱.pages.dev
 Redirect URLs：新增 https://你的名稱.pages.dev/\*\*
 
+## 從 V1a 升級到 V1b
+
+已經在用 V1a 的話，只要做兩件事（資料不會遺失）：
+
+1. **資料庫**：`supabase db push`，或在後台 SQL Editor 執行 `supabase/migrations/20261021000000_v1b_loans.sql`。
+2. **每日快照**：重新部署 `daily-snapshot`（CLI：`supabase functions deploy daily-snapshot --no-verify-jwt`；後台：把 `supabase/dashboard-deploy/daily-snapshot.ts` 整份貼上取代 → Deploy）。`fetch-fx` 不用動。
+
+前端照常由 Cloudflare 從 GitHub 自動部署。順序建議先資料庫、再快照函式、最後前端。
+
 ## 測試
 
 ```bash
-npm test          # 共用計算模組的 50 個測試
+npm test          # 共用計算模組的 72 個測試
 npm run typecheck # 前端型別檢查
 ```
 
@@ -165,8 +179,10 @@ createdb wt_test
 psql -d wt_test -v ON_ERROR_STOP=1 \
   -f supabase/tests/00_supabase_stub.sql \
   -f supabase/migrations/20261019000000_v1a_init.sql \
-  -f supabase/tests/v1a_behavior.sql
-# 最後一行應顯示 ALL SQL TESTS PASSED
+  -f supabase/migrations/20261021000000_v1b_loans.sql \
+  -f supabase/tests/v1a_behavior.sql \
+  -f supabase/tests/v1b_loans.sql
+# 應顯示 ALL SQL TESTS PASSED 與 ALL V1B SQL TESTS PASSED
 ```
 
 規格驗收案例與測試的對應：
@@ -184,6 +200,8 @@ psql -d wt_test -v ON_ERROR_STOP=1 \
 | 14 匯出                  | `core/__tests__/export-backup.test.ts`                       |
 | 15 備份還原              | `supabase/tests/v1a_behavior.sql`、`export-backup.test.ts`   |
 | 16 負數拒絕              | `core/__tests__/validation.test.ts`、資料庫 check constraint |
+| V1b 還款表與餘額         | `core/__tests__/loan.test.ts`                                |
+| V1b 貸款資料隔離與還原   | `supabase/tests/v1b_loans.sql`                               |
 
 ## 設計決策備忘
 
@@ -192,7 +210,9 @@ psql -d wt_test -v ON_ERROR_STOP=1 \
 - **匯率歷史**：同一天、同一來源重複抓取時更新同一列，每天保留一筆。
 - **項目不刪除**：資料庫沒有開放 delete，只能封存；修改由 trigger 自動記錄到 `balance_item_changes`。
 - **快照**：使用者只能讀取；寫入只能透過 `save_snapshot()`，且只有 service role 能呼叫。
-- **還原**：在資料庫函式 `restore_backup()` 內以單一交易完成；前端呼叫前會先自動下載一份目前資料。匯率是共用資料，不還原。
+- **還原**：在資料庫函式 `restore_backup()` 內以單一交易完成；前端呼叫前會先自動下載一份目前資料。匯率是共用資料，不還原。備份版本 2 起包含貸款資料，版本 1 的備份仍可還原。
+- **貸款餘額**：貸款是一個「貸款」分類的項目，金額由 `core/loan.ts` 的還款表算出。前端打開時用今天的餘額（和資料庫不同時寫回），每日快照用快照當天的餘額，兩邊是同一套算法，所以首頁、快照、匯出都一致。
+- **貸款計算規則**：每期利息 = 期初本金 × 年利率 ÷ 12；不滿一個月的期間按日計息（÷ 365）；緩繳本息不計息；四捨五入到元，最後一期還清零頭。和銀行對帳單有差距時，用「校正餘額」改成銀行的數字。
 
 ## 上線前需要實際確認的事
 

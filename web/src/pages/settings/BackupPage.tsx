@@ -46,7 +46,9 @@ export function BackupPage() {
       const result = await api.restoreBackup(pending.backup);
       await reload();
       setPending(null);
-      notify(`還原完成：${result.items} 個項目、${result.snapshots} 筆快照。還原前的資料已自動下載。`);
+      notify(
+        `還原完成：${result.items} 個項目、${result.loans ?? 0} 筆貸款、${result.snapshots} 筆快照。還原前的資料已自動下載。`,
+      );
     });
 
   const confirmRestore = () => {
@@ -71,7 +73,7 @@ export function BackupPage() {
             <input type="file" accept="application/json,.json" onChange={pick} disabled={busy} />
           </label>
         </div>
-        <p className="list-group__note">備份包含所有項目、修改紀錄與每日快照。還原會覆蓋目前資料。</p>
+        <p className="list-group__note">備份包含所有項目、貸款與還款紀錄、修改紀錄與每日快照。還原會覆蓋目前資料。</p>
       </section>
 
       {errors.length > 0 && (
@@ -95,6 +97,10 @@ export function BackupPage() {
               <dd className="list-row__detail">
                 {pending.preview.itemCount} 個（使用中 {pending.preview.activeItemCount}）
               </dd>
+            </div>
+            <div className="list-row">
+              <dt className="list-row__main">貸款</dt>
+              <dd className="list-row__detail">{pending.preview.loanCount} 筆</dd>
             </div>
             <div className="list-row">
               <dt className="list-row__main">快照</dt>

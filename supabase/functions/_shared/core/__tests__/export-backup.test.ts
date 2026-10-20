@@ -126,4 +126,60 @@ describe('備份檢查', () => {
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.errors.length).toBe(3);
   });
+
+  const withLoan = () => {
+    const b = valid() as ReturnType<typeof valid> & { data: Record<string, unknown> };
+    const loanId = '44444444-4444-4444-8444-444444444444';
+    b.version = 2;
+    b.data.loans = [
+      {
+        id: loanId,
+        item_id: '11111111-1111-4111-8111-111111111111',
+        start_date: '2026-01-15',
+        principal: '1000000',
+        first_payment_date: '2026-02-15',
+        created_at: '2026-01-15T00:00:00Z',
+        updated_at: '2026-01-15T00:00:00Z',
+      },
+    ];
+    b.data.loanRateChanges = [
+      {
+        id: 'r',
+        loan_id: loanId,
+        effective_date: '2026-01-15',
+        annual_rate: '2.185',
+        created_at: '2026-01-15T00:00:00Z',
+      },
+    ];
+    b.data.loanModeChanges = [
+      {
+        id: 'm',
+        loan_id: loanId,
+        effective_date: '2026-01-15',
+        mode: 'annuity',
+        term_months: 240,
+        interest_every: null,
+        created_at: '2026-01-15T00:00:00Z',
+      },
+    ];
+    b.data.loanAdjustments = [];
+    return b;
+  };
+
+  it('版本 2：貸款資料通過檢查並列入預覽；版本 1 視為沒有貸款', () => {
+    const v2 = validateBackup(withLoan());
+    expect(v2.ok && v2.preview.loanCount).toBe(1);
+    const v1 = validateBackup(valid());
+    expect(v1.ok && v1.preview.loanCount).toBe(0);
+  });
+
+  it('貸款資料對不上時拒絕', () => {
+    const bad = withLoan();
+    (bad.data.loans as { item_id: string }[])[0].item_id = '99999999-9999-4999-8999-999999999999';
+    (bad.data.loanModeChanges as { mode: string }[])[0].mode = 'magic';
+    const result = validateBackup(bad);
+    expect(result.ok).toBe(false);
+    if (!result.ok)
+      expect(result.errors).toEqual(['第 1 筆貸款：找不到對應的項目', '第 1 筆還款方式紀錄：資料格式錯誤']);
+  });
 });

@@ -7,9 +7,11 @@
  */
 import { isDecimalString } from './decimal.ts';
 import { isCategory } from './balance.ts';
+import { REPAYMENT_MODES, isIsoDate } from './loan.ts';
 
 export const BACKUP_FORMAT = 'personal-wealth-tracker-backup';
-export const BACKUP_VERSION = 1;
+/** 2：加入貸款資料。版本 1 的備份仍可還原（視為沒有貸款） */
+export const BACKUP_VERSION = 2;
 
 export interface BackupItem {
   id: string;
@@ -57,6 +59,45 @@ export interface BackupItemChange {
   changed_at: string;
 }
 
+export interface BackupLoan {
+  id: string;
+  item_id: string;
+  start_date: string;
+  principal: string;
+  first_payment_date: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BackupLoanRateChange {
+  id: string;
+  loan_id: string;
+  effective_date: string;
+  annual_rate: string;
+  created_at: string;
+}
+
+export interface BackupLoanModeChange {
+  id: string;
+  loan_id: string;
+  effective_date: string;
+  mode: string;
+  term_months: number | null;
+  interest_every: number | null;
+  created_at: string;
+}
+
+export interface BackupLoanAdjustment {
+  id: string;
+  loan_id: string;
+  adjust_date: string;
+  kind: string;
+  amount: string;
+  keep: string;
+  note: string | null;
+  created_at: string;
+}
+
 export interface BackupFile {
   format: typeof BACKUP_FORMAT;
   version: number;
@@ -67,6 +108,11 @@ export interface BackupFile {
     itemChanges: BackupItemChange[];
     snapshots: BackupSnapshot[];
     snapshotLines: BackupSnapshotLine[];
+    /** 版本 2 起才有 */
+    loans?: BackupLoan[];
+    loanRateChanges?: BackupLoanRateChange[];
+    loanModeChanges?: BackupLoanModeChange[];
+    loanAdjustments?: BackupLoanAdjustment[];
     /** 僅供參考，還原時不寫回 */
     fxRates?: unknown[];
   };
@@ -77,6 +123,7 @@ export interface BackupPreview {
   itemCount: number;
   activeItemCount: number;
   snapshotCount: number;
+  loanCount: number;
   firstSnapshotDate: string | null;
   lastSnapshotDate: string | null;
 }
@@ -104,6 +151,14 @@ export function validateBackup(input: unknown): Check {
     return { ok: false, errors: ['備份檔缺少必要的資料'] };
   }
   if (!Array.isArray(data.itemChanges)) data.itemChanges = [];
+  for (const key of ['loans', 'loanRateChanges', 'loanModeChanges', 'loanAdjustments'] as const) {
+    if (data[key] !== undefined && !Array.isArray(data[key]))
+      return { ok: false, errors: ['備份檔的貸款資料格式錯誤'] };
+  }
+  data.loans ??= [];
+  data.loanRateChanges ??= [];
+  data.loanModeChanges ??= [];
+  data.loanAdjustments ??= [];
 
   const itemIds = new Set<string>();
   data.items.forEach((item, i) => {
@@ -140,6 +195,41 @@ export function validateBackup(input: unknown): Check {
     if (!itemIds.has(String(change?.item_id))) fail(`第 ${i + 1} 筆修改紀錄：找不到對應的項目`);
   });
 
+  const loanIds = new Set<string>();
+  data.loans.forEach((loan, i) => {
+    const at = `第 ${i + 1} 筆貸款`;
+    if (!UUID_RE.test(String(loan?.id))) fail(`${at}：id 格式錯誤`);
+    else loanIds.add(loan.id);
+    if (!itemIds.has(String(loan?.item_id))) fail(`${at}：找不到對應的項目`);
+    if (!isIsoDate(String(loan?.start_date)) || !isIsoDate(String(loan?.first_payment_date)))
+      fail(`${at}：日期格式錯誤`);
+    if (typeof loan?.principal !== 'string' || !isDecimalString(loan.principal)) fail(`${at}：本金格式錯誤`);
+  });
+  const checkLoanRecords = (list: { loan_id: string }[], label: string, check: (row: never) => boolean) =>
+    list.forEach((row, i) => {
+      if (!loanIds.has(String(row?.loan_id))) fail(`第 ${i + 1} 筆${label}：找不到對應的貸款`);
+      else if (!check(row as never)) fail(`第 ${i + 1} 筆${label}：資料格式錯誤`);
+    });
+  checkLoanRecords(
+    data.loanRateChanges,
+    '利率紀錄',
+    (r: BackupLoanRateChange) => isIsoDate(String(r.effective_date)) && isDecimalString(String(r.annual_rate)),
+  );
+  checkLoanRecords(
+    data.loanModeChanges,
+    '還款方式紀錄',
+    (m: BackupLoanModeChange) =>
+      isIsoDate(String(m.effective_date)) && (REPAYMENT_MODES as readonly string[]).includes(m.mode),
+  );
+  checkLoanRecords(
+    data.loanAdjustments,
+    '提前還款紀錄',
+    (a: BackupLoanAdjustment) =>
+      isIsoDate(String(a.adjust_date)) &&
+      isDecimalString(String(a.amount)) &&
+      ['prepayment', 'balance'].includes(a.kind),
+  );
+
   if (errors.length > 0) return { ok: false, errors };
 
   const dates = [...snapshotDates].sort();
@@ -151,6 +241,7 @@ export function validateBackup(input: unknown): Check {
       itemCount: data.items.length,
       activeItemCount: data.items.filter((i) => i.status === 'active').length,
       snapshotCount: data.snapshots.length,
+      loanCount: data.loans.length,
       firstSnapshotDate: dates[0] ?? null,
       lastSnapshotDate: dates.at(-1) ?? null,
     },

@@ -340,7 +340,18 @@ export async function updateHideAmounts(hide: boolean): Promise<void> {
 // ---------- 備份與還原 ----------
 
 export async function buildBackup(): Promise<BackupFile> {
-  const [items, itemChanges, snapshots, snapshotLines, settingsRow, fxRates] = await Promise.all([
+  const [
+    items,
+    itemChanges,
+    snapshots,
+    snapshotLines,
+    settingsRow,
+    fxRates,
+    loans,
+    loanRateChanges,
+    loanModeChanges,
+    loanAdjustments,
+  ] = await Promise.all([
     fetchAll<BackupFile['data']['items'][number]>((from, to) =>
       supabase.from('balance_items').select(ITEM_COLUMNS).order('created_at').range(from, to),
     ),
@@ -379,6 +390,34 @@ export async function buildBackup(): Promise<BackupFile> {
         .order('currency')
         .range(from, to),
     ),
+    fetchAll<NonNullable<BackupFile['data']['loans']>[number]>((from, to) =>
+      supabase
+        .from('loans')
+        .select('id, item_id, start_date, principal:principal::text, first_payment_date, created_at, updated_at')
+        .order('created_at')
+        .range(from, to),
+    ),
+    fetchAll<NonNullable<BackupFile['data']['loanRateChanges']>[number]>((from, to) =>
+      supabase
+        .from('loan_rate_changes')
+        .select('id, loan_id, effective_date, annual_rate:annual_rate::text, created_at')
+        .order('effective_date')
+        .range(from, to),
+    ),
+    fetchAll<NonNullable<BackupFile['data']['loanModeChanges']>[number]>((from, to) =>
+      supabase
+        .from('loan_mode_changes')
+        .select('id, loan_id, effective_date, mode, term_months, interest_every, created_at')
+        .order('effective_date')
+        .range(from, to),
+    ),
+    fetchAll<NonNullable<BackupFile['data']['loanAdjustments']>[number]>((from, to) =>
+      supabase
+        .from('loan_adjustments')
+        .select('id, loan_id, adjust_date, kind, amount:amount::text, keep, note, created_at')
+        .order('adjust_date')
+        .range(from, to),
+    ),
   ]);
 
   return {
@@ -391,11 +430,19 @@ export async function buildBackup(): Promise<BackupFile> {
       itemChanges,
       snapshots,
       snapshotLines,
+      loans,
+      loanRateChanges,
+      loanModeChanges,
+      loanAdjustments,
       fxRates,
     },
   };
 }
 
-export async function restoreBackup(backup: BackupFile): Promise<{ items: number; snapshots: number }> {
-  return check(await supabase.rpc('restore_backup', { p_backup: backup })) as { items: number; snapshots: number };
+export async function restoreBackup(backup: BackupFile): Promise<{ items: number; snapshots: number; loans: number }> {
+  return check(await supabase.rpc('restore_backup', { p_backup: backup })) as {
+    items: number;
+    snapshots: number;
+    loans: number;
+  };
 }
