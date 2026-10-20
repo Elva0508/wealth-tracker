@@ -1,7 +1,9 @@
 /**
- * 每個畫面共用的外框：毛玻璃標題列、iOS 大標題、返回鍵、下拉更新。
- * - 分頁第一層用 largeTitle：往下捲時大標題會收合到標題列
- * - 下一層頁面給 backHref：左上角出現返回鍵，也可從左緣滑動返回
+ * 每個畫面共用的外框：大標題或標題列、返回鍵、下拉更新。
+ * - 分頁第一層用 largeTitle：只有跟著內容捲動的大標題，上方不另外出現標題列
+ * - 下一層頁面給 backHref：標題列左上角出現返回鍵，也可從左緣滑動返回
+ *
+ * 換頁時整頁都在移動，頁面裡不要用 backdrop-filter，iPhone 每一幀都要重算模糊會嚴重卡頓
  */
 import {
   IonBackButton,
@@ -34,18 +36,20 @@ interface Props {
 export function Page({ title, largeTitle, backHref, backText, end, onRefresh, fixed, ref, children }: Props) {
   return (
     <IonPage ref={ref}>
-      <IonHeader translucent className="glass-header">
-        <IonToolbar>
-          {backHref && (
-            <IonButtons slot="start">
-              <IonBackButton defaultHref={backHref} text={backText ?? '返回'} />
-            </IonButtons>
-          )}
-          <IonTitle>{title}</IonTitle>
-          {end && <IonButtons slot="end">{end}</IonButtons>}
-        </IonToolbar>
-      </IonHeader>
-      <IonContent fullscreen>
+      {!largeTitle && (
+        <IonHeader className="page-header">
+          <IonToolbar>
+            {backHref && (
+              <IonButtons slot="start">
+                <IonBackButton defaultHref={backHref} text={backText ?? '返回'} />
+              </IonButtons>
+            )}
+            <IonTitle>{title}</IonTitle>
+            {end && <IonButtons slot="end">{end}</IonButtons>}
+          </IonToolbar>
+        </IonHeader>
+      )}
+      <IonContent className={largeTitle ? 'content--large-title' : undefined}>
         {onRefresh && (
           <IonRefresher
             slot="fixed"
@@ -61,11 +65,14 @@ export function Page({ title, largeTitle, backHref, backText, end, onRefresh, fi
           </IonRefresher>
         )}
         {largeTitle && (
-          <IonHeader collapse="condense">
-            <IonToolbar>
-              <IonTitle size="large">{title}</IonTitle>
-            </IonToolbar>
-          </IonHeader>
+          <>
+            {/* 狀態列底下墊一層背景色，捲動的內容才不會和時間、電量疊在一起 */}
+            <div slot="fixed" className="status-bar-scrim" />
+            <header className="large-title">
+              <h1>{title}</h1>
+              {end && <div className="large-title__end">{end}</div>}
+            </header>
+          </>
         )}
         <div className="page-body">{children}</div>
         {fixed}

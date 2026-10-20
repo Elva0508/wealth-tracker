@@ -35,7 +35,7 @@ export function ItemCreateModal({
       onDidDismiss={onClose}
       className="glass-modal"
     >
-      <IonHeader className="glass-header">
+      <IonHeader className="page-header">
         <IonToolbar>
           <IonButtons slot="start">
             <IonButton onClick={onClose}>取消</IonButton>

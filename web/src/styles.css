@@ -1,7 +1,8 @@
 /* =============================================================
    溫暖紙感＋毛玻璃：米白紙底、鼠尾草綠（資產）、陶土橘（負債）
    版面走 iOS 原生語言：大標題、分組清單、細分隔線；
-   毛玻璃只用在內容會從下方滑過的地方（標題列、導覽列、彈出面板）與清單底板
+   真正的模糊（backdrop-filter）只用在固定不動的底部導覽列：
+   頁面裡的元素換頁時會跟著整頁移動，iPhone 每一幀都要重算模糊，會嚴重卡頓
    顏色都定義成變數，之後要調整只改這裡
    ============================================================= */
 :root {
@@ -15,10 +16,9 @@
   --ink-quiet: #6b7268;
   --ink-faint: rgb(70 58 36 / 0.32);
 
-  --glass: rgb(255 253 248 / 0.62);
-  --glass-strong: rgb(255 253 248 / 0.74);
+  /* 半透明的暖白：透出底下的淡色光暈，看起來像霧面玻璃，但不做即時模糊 */
+  --glass: rgb(255 253 248 / 0.72);
   --glass-edge: rgb(255 255 255 / 0.75);
-  --glass-blur: blur(20px) saturate(1.5);
 
   --sage-100: #eef3ec;
   --sage-200: #e3ece0;
@@ -43,8 +43,8 @@
   --font-body: 'Noto Sans TC', -apple-system, system-ui, sans-serif;
   --font-number: 'Manrope', 'Noto Sans TC', system-ui, sans-serif;
   /* 浮動導覽列佔用的高度，內容與浮動鍵要讓開 */
-  --tabbar-height: 64px;
-  --tabbar-gap: max(12px, env(safe-area-inset-bottom));
+  --tabbar-height: 54px;
+  --tabbar-gap: max(8px, calc(env(safe-area-inset-bottom) - 12px));
 
   /* Ionic 主題 */
   --ion-font-family: var(--font-body);
@@ -75,8 +75,8 @@
 *::before,
 *::after {
   box-sizing: border-box;
-  /* 只允許捲動，關掉雙擊與雙指縮放；touch-action 不會繼承，所以每個元素都要設 */
-  touch-action: pan-x pan-y;
+  /* 關掉雙擊放大；touch-action 不會繼承，所以每個元素都要設。雙指縮放在 main.tsx 擋掉 */
+  touch-action: manipulation;
 }
 
 html,
@@ -94,21 +94,10 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
-/* 一層很淡的紙張顆粒，讓大片底色不會像純色塊 */
-body::after {
-  content: '';
-  position: fixed;
-  inset: 0;
-  z-index: 100000;
-  pointer-events: none;
-  opacity: 0.05;
-  mix-blend-mode: multiply;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.3 0 0 0 0 0.25 0 0 0 0 0.15 0 0 0 1 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-}
-
 ion-content {
-  /* 紙底上兩片很淡的暖色光暈，毛玻璃才有東西可以透 */
-  --background: radial-gradient(90% 55% at 0% 0%, rgb(169 194 164 / 0.28), transparent 70%),
+  /* 紙底：一層很淡的紙張顆粒，加上兩片很淡的暖色光暈。都是靜態背景圖，換頁時不需要重算 */
+  --background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.3 0 0 0 0 0.25 0 0 0 0 0.15 0 0 0 0.05 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
+    radial-gradient(90% 55% at 0% 0%, rgb(169 194 164 / 0.28), transparent 70%),
     radial-gradient(80% 50% at 100% 100%, rgb(221 168 140 / 0.22), transparent 70%), var(--bg);
 }
 
@@ -155,8 +144,6 @@ textarea {
 
 .card {
   background: var(--glass);
-  -webkit-backdrop-filter: var(--glass-blur);
-  backdrop-filter: var(--glass-blur);
   border: 1px solid var(--glass-edge);
   border-radius: var(--radius-lg);
 }
@@ -230,25 +217,49 @@ textarea {
   padding: 20px 16px calc(var(--tabbar-height) + var(--tabbar-gap) + 40px);
 }
 
-/* 大標題下方已經有留白 */
-ion-header.header-collapse-condense + .page-body {
+/* 第一層：大標題跟著內容捲動，上方不出現標題列 */
+.content--large-title .page-body {
   padding-top: 4px;
+}
+
+.large-title {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: calc(env(safe-area-inset-top) + 14px) 20px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.large-title h1 {
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.large-title__end ion-button {
+  --color: var(--sage-700);
+  margin: 0 -8px 0 0;
+}
+
+.status-bar-scrim {
+  top: 0;
+  left: 0;
+  right: 0;
+  height: env(safe-area-inset-top);
+  background: var(--bg);
+  z-index: 10;
+}
+
+/* 下一層的標題列：實心背景色，捲動的內容不會透上來 */
+ion-header.page-header ion-toolbar {
+  --background: var(--bg);
 }
 
 .page-body--modal {
   padding-top: 20px;
   padding-bottom: calc(32px + env(safe-area-inset-bottom));
-}
-
-/* 大標題區不要自己的底色，直接透出紙底 */
-ion-header.header-collapse-condense ion-toolbar {
-  --background: transparent;
-  --border-width: 0;
-}
-
-ion-title.title-large {
-  font-weight: 700;
-  letter-spacing: 0.01em;
 }
 
 ion-toolbar ion-button,
@@ -265,27 +276,41 @@ ion-tab-bar.glass-tabbar {
   max-width: 420px;
   height: var(--tabbar-height);
   margin: 0 auto;
-  padding: 0 6px;
+  padding: 0 4px;
   contain: none;
   border: 1px solid var(--glass-edge);
   border-radius: calc(var(--tabbar-height) / 2);
-  --background: var(--glass);
+  /* 和背景同色、幾乎不透明，只透一點點模糊，文字捲過去不會和圖示疊在一起 */
+  --background: rgb(246 243 236 / 0.9);
   --border: 0;
   --color: var(--ink-quiet);
   --color-selected: var(--sage-800);
-  -webkit-backdrop-filter: blur(24px) saturate(1.7);
-  backdrop-filter: blur(24px) saturate(1.7);
+  -webkit-backdrop-filter: blur(20px) saturate(1.5);
+  backdrop-filter: blur(20px) saturate(1.5);
   box-shadow:
-    0 12px 32px rgb(70 58 36 / 0.14),
-    0 2px 6px rgb(70 58 36 / 0.06);
+    0 8px 24px rgb(70 58 36 / 0.12),
+    0 1px 4px rgb(70 58 36 / 0.06);
+  z-index: 10;
+}
+
+/* 導覽列後方從下往上淡出的背景色 */
+.tabbar-scrim {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: calc(var(--tabbar-height) + var(--tabbar-gap) + 16px);
+  background: linear-gradient(to top, var(--bg) 60%, rgb(243 239 230 / 0));
+  pointer-events: none;
+  z-index: 9;
 }
 
 ion-tab-bar.glass-tabbar ion-tab-button {
   --background: transparent;
   --ripple-color: transparent;
-  margin: 6px 0;
-  border-radius: calc((var(--tabbar-height) - 14px) / 2);
-  font-size: 11px;
+  margin: 5px 0;
+  border-radius: calc((var(--tabbar-height) - 10px) / 2);
+  font-size: 10px;
   transition: background-color 0.25s ease;
 }
 
@@ -295,13 +320,13 @@ ion-tab-bar.glass-tabbar ion-tab-button.tab-selected {
 }
 
 ion-tab-bar.glass-tabbar ion-label {
-  margin-top: 3px;
+  margin-top: 2px;
 }
 
 /* 浮動新增鍵在導覽列上方 */
 ion-fab.fab {
   right: 20px;
-  bottom: calc(var(--tabbar-height) + var(--tabbar-gap) + 16px);
+  bottom: calc(var(--tabbar-height) + var(--tabbar-gap) + 20px);
 }
 
 ion-fab.fab ion-fab-button {
@@ -367,8 +392,6 @@ ion-toggle {
   padding: 0;
   list-style: none;
   background: var(--glass);
-  -webkit-backdrop-filter: var(--glass-blur);
-  backdrop-filter: var(--glass-blur);
   border: 1px solid var(--glass-edge);
   border-radius: var(--radius);
   overflow: hidden;

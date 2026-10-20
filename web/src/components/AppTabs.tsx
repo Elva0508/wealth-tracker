@@ -49,21 +49,23 @@ export function AppTabs() {
         <Route path="*" element={<Navigate to="/overview" replace />} />
       </IonRouterOutlet>
 
+      {/* 導覽列後方墊一層漸層背景色，捲到底下的文字不會和導覽列疊在一起 */}
+      <div className="tabbar-scrim" aria-hidden="true" />
       <IonTabBar slot="bottom" className="glass-tabbar">
         <IonTabButton tab="overview" href="/overview">
-          <ListIcon size={22} />
+          <ListIcon size={20} />
           <IonLabel>總覽</IonLabel>
         </IonTabButton>
         <IonTabButton tab="investments" href="/investments">
-          <ChartIcon size={22} />
+          <ChartIcon size={20} />
           <IonLabel>投資</IonLabel>
         </IonTabButton>
         <IonTabButton tab="loans" href="/loans">
-          <LoanIcon size={22} />
+          <LoanIcon size={20} />
           <IonLabel>貸款</IonLabel>
         </IonTabButton>
         <IonTabButton tab="settings" href="/settings">
-          <SettingsIcon size={22} />
+          <SettingsIcon size={20} />
           <IonLabel>設定</IonLabel>
         </IonTabButton>
       </IonTabBar>

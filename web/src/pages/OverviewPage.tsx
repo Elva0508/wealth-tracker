@@ -90,6 +90,7 @@ export function OverviewPage() {
       }
       end={
         <IonButton
+          fill="clear"
           aria-label={hidden ? '顯示金額' : '隱藏金額'}
           aria-pressed={!hidden}
           onClick={() => setHidden(!hidden)}
