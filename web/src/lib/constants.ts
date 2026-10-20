@@ -19,3 +19,10 @@ export function formatDateTime(iso: string): string {
   const t = new Date(new Date(iso).getTime() + 8 * 3600_000).toISOString();
   return `${Number(t.slice(5, 7))}/${Number(t.slice(8, 10))} ${t.slice(11, 16)}`;
 }
+
+/** 'YYYY-MM-DD' → '2026/10/15'；同一年可省略年份 → '10/15' */
+export function formatDate(date: string, omitYearOf?: string): string {
+  const [y, m, d] = date.split('-');
+  const md = `${Number(m)}/${Number(d)}`;
+  return omitYearOf && omitYearOf.slice(0, 4) === y ? md : `${y}/${md}`;
+}

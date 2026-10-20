@@ -80,6 +80,7 @@ function ItemRow({ item, onOpen }: { item: ValuedItem; onOpen: () => void }) {
               <Amount value={item.amountDec} currency={item.currency} />
             </span>
           )}
+          {item.sourceType === 'loan' && <span className="list-row__sub">依還款表自動計算</span>}
         </span>
         <Amount value={item.amountBase} className="list-row__value" />
         <span className="list-row__chevron">

@@ -12,7 +12,14 @@ import {
   type Category,
   type FxRow,
   type ItemKind,
+  type LoanAdjustment,
+  type LoanAdjustmentRow,
+  type LoanModeRow,
+  type LoanRateRow,
+  type LoanRow,
+  type ModeChange,
   type ValidItemInput,
+  type ValidLoanInput,
   kindOf,
 } from '@core';
 import { supabase } from './supabase';
@@ -93,12 +100,7 @@ async function fetchAll<T>(
 /** 讀取所有項目（含已封存） */
 export async function fetchItems(): Promise<Item[]> {
   const rows = await fetchAll<ItemRow>((from, to) =>
-    supabase
-      .from('balance_items')
-      .select(ITEM_COLUMNS)
-      .order('sort_order')
-      .order('created_at')
-      .range(from, to),
+    supabase.from('balance_items').select(ITEM_COLUMNS).order('sort_order').order('created_at').range(from, to),
   );
   return rows.map(toItem);
 }
@@ -152,6 +154,154 @@ export async function setArchived(id: string, archived: boolean): Promise<void> 
       )
       .eq('id', id),
   );
+}
+
+/** 貸款項目的金額由還款表算出；和資料庫不同時寫回，讓備份、匯出與修改紀錄也一致 */
+export async function syncItemAmount(id: string, amount: string): Promise<void> {
+  check(await supabase.from('balance_items').update({ amount }).eq('id', id));
+}
+
+// ---------- 貸款 ----------
+
+export interface LoanData {
+  loans: LoanRow[];
+  rates: (LoanRateRow & { id: string })[];
+  modes: (LoanModeRow & { id: string })[];
+  adjustments: (LoanAdjustmentRow & { id: string })[];
+}
+
+export async function fetchLoans(): Promise<LoanData> {
+  const [loans, rates, modes, adjustments] = await Promise.all([
+    fetchAll<LoanRow>((from, to) =>
+      supabase
+        .from('loans')
+        .select('id, item_id, start_date, principal:principal::text, first_payment_date')
+        .order('created_at')
+        .range(from, to),
+    ),
+    fetchAll<LoanData['rates'][number]>((from, to) =>
+      supabase
+        .from('loan_rate_changes')
+        .select('id, loan_id, effective_date, annual_rate:annual_rate::text')
+        .order('effective_date')
+        .range(from, to),
+    ),
+    fetchAll<LoanData['modes'][number]>((from, to) =>
+      supabase
+        .from('loan_mode_changes')
+        .select('id, loan_id, effective_date, mode, term_months, interest_every')
+        .order('effective_date')
+        .range(from, to),
+    ),
+    fetchAll<LoanData['adjustments'][number]>((from, to) =>
+      supabase
+        .from('loan_adjustments')
+        .select('id, loan_id, adjust_date, kind, amount:amount::text, keep, note')
+        .order('adjust_date')
+        .range(from, to),
+    ),
+  ]);
+  return { loans, rates, modes, adjustments };
+}
+
+/** 新增貸款；itemId 有給時是把原本手動輸入的貸款項目轉成自動計算 */
+export async function createLoan(
+  input: ValidLoanInput,
+  options: { currency: string; itemId?: string; sortOrder?: number },
+): Promise<string> {
+  return check(
+    await supabase.rpc('create_loan', {
+      p_name: input.name,
+      p_currency: options.currency,
+      p_start_date: input.startDate,
+      p_principal: input.principal,
+      p_first_payment_date: input.firstPaymentDate,
+      p_annual_rate: input.annualRate,
+      p_mode: input.mode.mode,
+      p_term_months: input.mode.termMonths,
+      p_interest_every: input.mode.interestEvery,
+      p_item_id: options.itemId ?? null,
+      p_sort_order: options.sortOrder ?? 0,
+    }),
+  ) as string;
+}
+
+/** 切換還款方式；同一天已經有一筆時直接取代 */
+export async function saveModeChange(loanId: string, change: ModeChange): Promise<void> {
+  check(
+    await supabase.from('loan_mode_changes').upsert(
+      {
+        loan_id: loanId,
+        effective_date: change.effectiveDate,
+        mode: change.mode,
+        term_months: change.termMonths,
+        interest_every: change.interestEvery,
+      },
+      { onConflict: 'loan_id,effective_date' },
+    ),
+  );
+}
+
+/** 記錄利率變動；同一天已經有一筆時直接取代 */
+export async function saveRateChange(loanId: string, effectiveDate: string, annualRate: string): Promise<void> {
+  check(
+    await supabase
+      .from('loan_rate_changes')
+      .upsert(
+        { loan_id: loanId, effective_date: effectiveDate, annual_rate: annualRate },
+        { onConflict: 'loan_id,effective_date' },
+      ),
+  );
+}
+
+export async function addAdjustment(loanId: string, adjustment: LoanAdjustment): Promise<void> {
+  check(
+    await supabase.from('loan_adjustments').insert({
+      loan_id: loanId,
+      adjust_date: adjustment.date,
+      kind: adjustment.kind,
+      amount: adjustment.amount,
+      keep: adjustment.keep,
+    }),
+  );
+}
+
+export type LoanRecordTable = 'loan_rate_changes' | 'loan_mode_changes' | 'loan_adjustments';
+
+export async function deleteLoanRecord(table: LoanRecordTable, id: string): Promise<void> {
+  check(await supabase.from(table).delete().eq('id', id));
+}
+
+// ---------- 淨資產趨勢 ----------
+
+export interface SnapshotPoint {
+  date: string;
+  netWorth: string;
+  totalAssets: string;
+  totalLiabilities: string;
+}
+
+export async function fetchSnapshots(): Promise<SnapshotPoint[]> {
+  const rows = await fetchAll<{
+    snapshot_date: string;
+    net_worth: string;
+    total_assets: string;
+    total_liabilities: string;
+  }>((from, to) =>
+    supabase
+      .from('net_worth_snapshots')
+      .select(
+        'snapshot_date, net_worth:net_worth::text, total_assets:total_assets::text, total_liabilities:total_liabilities::text',
+      )
+      .order('snapshot_date')
+      .range(from, to),
+  );
+  return rows.map((r) => ({
+    date: r.snapshot_date,
+    netWorth: r.net_worth,
+    totalAssets: r.total_assets,
+    totalLiabilities: r.total_liabilities,
+  }));
 }
 
 // ---------- 匯率 ----------

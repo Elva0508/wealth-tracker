@@ -6,6 +6,9 @@ import { Navigate, type RouteObject } from 'react-router';
 import { CategoryPage } from './pages/CategoryPage';
 import { ComingSoonPage } from './pages/ComingSoonPage';
 import { ItemPage } from './pages/ItemPage';
+import { LoanPage } from './pages/LoanPage';
+import { LoanSchedulePage } from './pages/LoanSchedulePage';
+import { LoansPage } from './pages/LoansPage';
 import { OverviewPage } from './pages/OverviewPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { ArchivedPage } from './pages/settings/ArchivedPage';
@@ -27,16 +30,9 @@ export const pageRoutes: RouteObject[] = [
       />
     ),
   },
-  {
-    path: '/loans',
-    element: (
-      <ComingSoonPage
-        title="貸款管理"
-        stage="V1b"
-        description="還款表、固定與浮動利率、自有與貸款資金分類、利息分攤，以及淨資產趨勢圖。"
-      />
-    ),
-  },
+  { path: '/loans', element: <LoansPage /> },
+  { path: '/loans/:loanId', element: <LoanPage /> },
+  { path: '/loans/:loanId/schedule', element: <LoanSchedulePage /> },
   { path: '/settings', element: <SettingsPage /> },
   { path: '/settings/archived', element: <ArchivedPage /> },
   { path: '/settings/export', element: <ExportPage /> },
