@@ -43,8 +43,8 @@
 *::before,
 *::after {
   box-sizing: border-box;
-  /* 關掉雙擊放大（保留捲動與雙指縮放）；touch-action 不會繼承，所以每個元素都要設 */
-  touch-action: manipulation;
+  /* 只允許捲動，關掉雙擊與雙指縮放；touch-action 不會繼承，所以每個元素都要設 */
+  touch-action: pan-x pan-y;
 }
 
 html,
