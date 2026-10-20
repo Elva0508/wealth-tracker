@@ -2,8 +2,8 @@
  * 滿版彈出面板：從底部滑上來蓋住整個畫面，後方畫面不縮放。
  * 使用原生 <dialog>：內建焦點鎖定、Esc 關閉與背景遮罩。
  *
- * 往下拉關閉：拖住標題列，或內容已捲到最上面時往下拉，面板會跟著手指移動；
- * 放開時從當下的位置接著滑下去（甩得越快越快），沒拉夠就彈回原位。
+ * 拖動：拖住標題列可以上下拖，內容已捲到最上面時往下拉也可以，面板緊跟著手指移動；
+ * 往上推超過原位會有阻力。放開時拉得夠多或甩得夠快就從當下的位置接著滑下去關閉，否則彈回原位。
  *
  * 掛上去就打開；關閉時先播完滑下去的動畫，再呼叫 onClose 讓外層移除。
  * children 是函式，拿到 close() 才能在儲存後也用同樣的動畫關閉。
@@ -65,14 +65,12 @@ export function Sheet({
     let fromHeader = false;
     let scrolledAtStart = false;
     let samples: { y: number; t: number }[] = [];
-    let frame = 0;
 
-    const move = (dy: number) => {
-      cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(() => {
-        dialog.style.transform = dy > 0 ? `translateY(${dy}px)` : '';
-        dialog.style.setProperty('--sheet-progress', String(Math.min(1, dy / dialog.clientHeight)));
-      });
+    // 直接在 touchmove 裡設定位置，不等下一幀，面板才會緊跟著手指。
+    // 往上推（超過原位）時加阻力，像原生面板一樣只能拉動一點點再彈回去
+    const offsetOf = (dy: number) => (dy >= 0 ? dy : -Math.pow(-dy, 0.7));
+    const place = (offset: number) => {
+      dialog.style.transform = offset === 0 ? '' : `translate3d(0, ${offset}px, 0)`;
     };
 
     const onStart = (e: TouchEvent) => {
@@ -93,36 +91,36 @@ export function Sheet({
       const dy = y - startY;
       // 內容還能往上捲時，往下拉是捲動內容，不是拖面板
       if (!dragging) {
-        if (dy <= 0 || !e.cancelable || (!fromHeader && scrolledAtStart)) return;
+        if (!e.cancelable) return;
+        // 拖標題列：上下都跟著動；拖內容：內容在最上面時往下拉才算
+        const start = fromHeader ? Math.abs(dy) > 2 : dy > 0 && !scrolledAtStart;
+        if (!start) return;
         dragging = true;
         startY = y; // 從這裡開始算，面板不會突然跳一段
       }
       e.preventDefault();
       samples.push({ y, t: e.timeStamp });
       if (samples.length > 5) samples.shift();
-      move(Math.max(0, y - startY));
+      place(offsetOf(y - startY));
     };
 
     const onEnd = () => {
       if (!dragging) return;
       dragging = false;
-      cancelAnimationFrame(frame);
       // 用最後一次移動的位置與時間算距離和速度（touchend 的座標不一定可靠）
       const last = samples[samples.length - 1];
       const first = samples[0];
-      const dy = Math.max(0, last.y - startY);
+      const dy = last.y - startY;
       const velocity = (last.y - first.y) / Math.max(1, last.t - first.t);
       const height = dialog.clientHeight;
-      dialog.style.transform = `translateY(${dy}px)`;
-      if (dy > height * DISMISS_RATIO || velocity > DISMISS_VELOCITY) {
+      if (dy > 0 && (dy > height * DISMISS_RATIO || velocity > DISMISS_VELOCITY)) {
         // 剩下的距離用放開時的速度走完，再限制在合理範圍內
         const remaining = height - dy;
         const duration = Math.round(Math.min(380, Math.max(160, remaining / Math.max(velocity, 1.2))));
         close(duration);
       } else {
-        dialog.style.transition = `transform 0.35s ${IOS_EASE}`;
-        dialog.style.transform = '';
-        dialog.style.removeProperty('--sheet-progress');
+        dialog.style.transition = `transform 0.4s ${IOS_EASE}`;
+        place(0);
       }
     };
 
@@ -131,7 +129,6 @@ export function Sheet({
     dialog.addEventListener('touchend', onEnd);
     dialog.addEventListener('touchcancel', onEnd);
     return () => {
-      cancelAnimationFrame(frame);
       dialog.removeEventListener('touchstart', onStart);
       dialog.removeEventListener('touchmove', onMove);
       dialog.removeEventListener('touchend', onEnd);

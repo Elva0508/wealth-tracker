@@ -47,6 +47,10 @@
   --tabbar-gap: max(8px, calc(env(safe-area-inset-bottom) - 12px));
 
 
+  --paper: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.3 0 0 0 0 0.25 0 0 0 0 0.15 0 0 0 0.05 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
+    radial-gradient(90% 55% at 0% 0%, rgb(169 194 164 / 0.28), transparent 70%),
+    radial-gradient(80% 50% at 100% 100%, rgb(221 168 140 / 0.22), transparent 70%), var(--bg);
+
   color-scheme: light;
 }
 
@@ -73,16 +77,9 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
-/* 紙底：一層很淡的紙張顆粒，加上兩片很淡的暖色光暈。固定在最底層，都是靜態圖，捲動和換頁時不需要重算 */
-body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.3 0 0 0 0 0.25 0 0 0 0 0.15 0 0 0 0.05 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
-    radial-gradient(90% 55% at 0% 0%, rgb(169 194 164 / 0.28), transparent 70%),
-    radial-gradient(80% 50% at 100% 100%, rgb(221 168 140 / 0.22), transparent 70%), var(--bg);
+/* 紙底：一層很淡的紙張顆粒，加上兩片很淡的暖色光暈。都是靜態圖，捲動和換頁時不需要重算 */
+body {
+  background: var(--paper);
 }
 
 h1,
@@ -194,46 +191,68 @@ textarea {
   border-radius: 2px;
 }
 
-/* ---------- 外框與換頁 ---------- */
-.layout {
-  min-height: 100dvh;
-  /* 換頁時新頁面從畫面外滑進來，不能讓整頁出現水平捲軸 */
-  overflow-x: clip;
+/* ---------- 外框與頁面堆疊 ---------- */
+:root {
+  --page-duration: 0.4s;
+  --page-ease: cubic-bezier(0.32, 0.72, 0, 1);
 }
 
-.page {
-  min-height: 100dvh;
+/* 每一頁是一個全螢幕、各自捲動的圖層；上層頁面藏在底下，返回時直接露出來 */
+.layer {
+  position: fixed;
+  inset: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  background: var(--paper);
 }
 
-/* 往下一層：從右邊滑入，左緣帶一點陰影 */
-.page--push {
-  animation: page-push 0.38s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+.layer--hidden {
+  visibility: hidden;
+  transform: translateX(-30%);
 }
 
-/* 回上一層：上一頁從左邊滑回 */
-.page--pop {
-  animation: page-pop 0.32s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+/* 往下一層：新頁面從右邊滑入，上一頁同時往左退 */
+.layer--push-in {
+  animation: layer-in-right var(--page-duration) var(--page-ease) backwards;
+  box-shadow: -10px 0 30px rgb(70 58 36 / 0.1);
 }
 
-@keyframes page-push {
+.layer--push-out {
+  animation: layer-out-left var(--page-duration) var(--page-ease) forwards;
+}
+
+/* 返回：目前頁面往右滑出，上一頁從左邊滑回 */
+.layer--pop-out {
+  animation: layer-out-right var(--page-duration) var(--page-ease) forwards;
+  box-shadow: -10px 0 30px rgb(70 58 36 / 0.1);
+}
+
+.layer--pop-in {
+  animation: layer-in-left var(--page-duration) var(--page-ease) backwards;
+}
+
+@keyframes layer-in-right {
   from {
     transform: translateX(100%);
-    box-shadow: -12px 0 32px rgb(70 58 36 / 0.12);
-  }
-  to {
-    transform: none;
-    box-shadow: none;
   }
 }
 
-@keyframes page-pop {
-  from {
-    transform: translateX(-28%);
-    opacity: 0.7;
-  }
+@keyframes layer-out-left {
   to {
-    transform: none;
-    opacity: 1;
+    transform: translateX(-30%);
+  }
+}
+
+@keyframes layer-out-right {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes layer-in-left {
+  from {
+    transform: translateX(-30%);
   }
 }
 
@@ -531,14 +550,11 @@ textarea {
   color: var(--ink);
   overflow-y: auto;
   overscroll-behavior: contain;
-  will-change: transform;
   animation: sheet-in 0.5s cubic-bezier(0.32, 0.72, 0, 1) backwards;
 }
 
-/* 往下拉時背景遮罩跟著變淡（--sheet-progress 由 Sheet 設定，0 到 1） */
 .sheet::backdrop {
   background: rgb(40 44 38 / 0.4);
-  opacity: calc(1 - var(--sheet-progress, 0));
   animation: backdrop-in 0.3s ease both;
 }
 
@@ -1231,7 +1247,7 @@ textarea {
   }
 
   .columns__detail,
-  .page,
+  .layer,
   .sheet,
   .sheet::backdrop {
     animation: none;

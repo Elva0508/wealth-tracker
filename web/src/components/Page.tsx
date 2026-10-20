@@ -7,6 +7,7 @@
  */
 import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router';
+import { goBack } from '../lib/navigation';
 import { ChevronLeftIcon } from './Icons';
 
 interface Props {
@@ -22,12 +23,7 @@ interface Props {
 export function Page({ title, largeTitle, backHref, backText, end, children }: Props) {
   const navigate = useNavigate();
 
-  // 有上一頁就退回去（返回時會回到原本捲到的位置）；從網址直接打開時沒有上一頁，改到上一層
-  const back = () => {
-    const idx = (window.history.state as { idx?: number } | null)?.idx ?? 0;
-    if (idx > 0) navigate(-1);
-    else if (backHref) navigate(backHref, { replace: true });
-  };
+  const back = () => backHref && goBack(navigate, backHref);
 
   if (largeTitle) {
     return (

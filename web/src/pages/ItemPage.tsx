@@ -6,6 +6,7 @@ import { ItemForm } from '../components/ItemForm';
 import { Page } from '../components/Page';
 import { useAppData } from '../hooks/useAppData';
 import * as api from '../lib/api';
+import { goBack } from '../lib/navigation';
 
 export function ItemPage() {
   const { category, itemId } = useParams();
@@ -19,11 +20,7 @@ export function ItemPage() {
   const backText = categoryLabel.length <= 4 ? categoryLabel : '返回';
   const item = items.find((i) => i.id === itemId && i.status === 'active');
 
-  // 從網址直接打開時沒有上一頁，改成退回分類頁
-  const leave = () =>
-    ((window.history.state as { idx?: number } | null)?.idx ?? 0) > 0
-      ? navigate(-1)
-      : navigate(backHref, { replace: true });
+  const leave = () => goBack(navigate, backHref);
 
   function confirmArchive() {
     if (!item) return;
