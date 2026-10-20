@@ -293,6 +293,11 @@ ion-tab-bar.glass-tabbar {
   z-index: 10;
 }
 
+/* 換頁或滑動返回進行中，暫時不能切換分頁（見 AppTabs） */
+body.nav-busy ion-tab-bar.glass-tabbar {
+  pointer-events: none;
+}
+
 /* 導覽列後方從下往上淡出的背景色 */
 .tabbar-scrim {
   position: absolute;
