@@ -22,7 +22,7 @@ export const pageRoutes: RouteObject[] = [
     element: (
       <ComingSoonPage
         title="投資管理"
-        stage="V1b"
+        stage="V1c"
         description="券商帳戶與交割戶、逐筆買賣、手續費與交易稅、加權平均與 FIFO 成本、自動股價與股利。"
       />
     ),
@@ -32,7 +32,7 @@ export const pageRoutes: RouteObject[] = [
     element: (
       <ComingSoonPage
         title="貸款管理"
-        stage="V1c"
+        stage="V1b"
         description="還款表、固定與浮動利率、自有與貸款資金分類、利息分攤，以及淨資產趨勢圖。"
       />
     ),
