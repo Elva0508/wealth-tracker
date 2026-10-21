@@ -1,5 +1,5 @@
 /**
- * 首頁「淨資產趨勢」：每日快照連成一條線，最後一點是現在的即時淨資產。
+ * 「趨勢」分頁：每日快照連成一條線，最後一點是現在的即時淨資產；圖下方列出區間的起點、最高、最低。
  *
  * - 單一數列：不需要圖例，標題就說明了畫的是什麼
  * - 2px 線＋很淡的面積、最後一點加端點；只標最新值，其他交給 Y 軸與觸控讀數
@@ -21,7 +21,7 @@ const RANGES = [
 ] as const;
 type RangeKey = (typeof RANGES)[number]['key'];
 
-const HEIGHT = 150;
+const HEIGHT = 260;
 const PAD = { top: 12, right: 12, bottom: 22, left: 44 };
 const MASK = '••••';
 
@@ -79,8 +79,10 @@ export function NetWorthTrend({ snapshots, liveNetWorth }: { snapshots: Snapshot
 
   if (points.length < 2) {
     return (
-      <section className="card trend" aria-labelledby="trend-title">
-        <h2 id="trend-title">淨資產趨勢</h2>
+      <section className="trend" aria-labelledby="trend-title">
+        <h2 id="trend-title" className="trend__label">
+          淨資產趨勢
+        </h2>
         <p className="muted small">每天早上 6 點會記錄前一天的淨資產，累積兩天後這裡就會畫出走勢。</p>
       </section>
     );
@@ -107,6 +109,10 @@ export function NetWorthTrend({ snapshots, liveNetWorth }: { snapshots: Snapshot
   const shown = active ?? points.length - 1;
   const focus = points[shown];
   const money = (v: Dec) => (hidden ? MASK : formatNumber(v, 0).replace('-', '−'));
+  // 區間最高與最低（同值取最近的一天）
+  const peak = points.reduce((best, p) => (p.value >= best.value ? p : best), points[0]);
+  const trough = points.reduce((best, p) => (p.value <= best.value ? p : best), points[0]);
+  const when = (p: Point) => (p.live ? '現在' : formatDate(p.date, today));
 
   // 手指或滑鼠移動時，找最近的一天
   const track = (e: PointerEvent<SVGSVGElement>) => {
@@ -124,28 +130,20 @@ export function NetWorthTrend({ snapshots, liveNetWorth }: { snapshots: Snapshot
   } ${money(change < 0n ? -change : change)} 元`;
 
   return (
-    <section className="card trend" aria-labelledby="trend-title">
-      <div className="trend__head">
-        <div>
-          <h2 id="trend-title">淨資產趨勢</h2>
-          <p className="trend__readout" aria-live="polite">
-            <span className="trend__value">{money(focus.value)}</span>
-            <span className="muted small">
-              {focus.live ? '現在' : formatDate(focus.date, today)}
-              {active === null && !hidden && (
-                <>
-                  {' · '}
-                  {RANGES.find((r) => r.key === range)!.label}
-                  {change >= 0n ? '增加 ' : '減少 '}
-                  {money(change < 0n ? -change : change)}
-                </>
-              )}
-            </span>
-          </p>
-        </div>
+    <section className="trend" aria-labelledby="trend-title">
+      <div className="trend__head" aria-live="polite">
+        <h2 id="trend-title" className="trend__label">
+          淨資產 · {focus.live ? '現在' : formatDate(focus.date, today)}
+        </h2>
+        <span className="trend__value">{money(focus.value)}</span>
+        <span className={`trend__change ${change >= 0n ? 'trend__change--up' : 'trend__change--down'}`}>
+          {RANGES.find((r) => r.key === range)!.label}
+          {change >= 0n ? ' 增加 ' : ' 減少 '}
+          {money(change < 0n ? -change : change)}
+        </span>
       </div>
 
-      <div className="segmented segmented--small" role="group" aria-label="期間">
+      <div className="segmented segmented--four" role="group" aria-label="期間">
         {RANGES.map((r) => (
           <button
             key={r.key}
@@ -194,6 +192,31 @@ export function NetWorthTrend({ snapshots, liveNetWorth }: { snapshots: Snapshot
           <circle className="trend__dot" cx={x(focus.date)} cy={y(values[shown])} r={4.5} />
         </svg>
       </div>
+
+      <dl className="stats">
+        <div>
+          <dt>起點 · {when(points[0])}</dt>
+          <dd>{money(points[0].value)}</dd>
+        </div>
+        <div>
+          <dt>變動</dt>
+          <dd className={change >= 0n ? 'stats--up' : 'stats--down'}>
+            {change >= 0n && !hidden ? '+' : ''}
+            {money(change)}
+          </dd>
+        </div>
+        <div>
+          <dt>最高 · {when(peak)}</dt>
+          <dd>{money(peak.value)}</dd>
+        </div>
+        <div>
+          <dt>最低 · {when(trough)}</dt>
+          <dd>{money(trough.value)}</dd>
+        </div>
+      </dl>
+      <p className="footnote">
+        每天早上 6 點記錄前一天的淨資產；最後一點是現在的即時金額。按住圖表可以看每一天的數字。
+      </p>
     </section>
   );
 }

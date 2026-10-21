@@ -1,5 +1,5 @@
 /**
- * 首頁「資產與負債」直立雙柱：資產 = 負債 + 淨資產。
+ * 「結構」分頁：資產與負債直立雙柱（資產 = 負債 + 淨資產），下方列出每一段的金額與占比。
  *
  * - 左柱：資產各大類；負債大於資產時，上方補一段虛線斜紋「資不抵債」
  * - 右柱：負債各分類；資產大於負債時，上方補一段虛線「淨資產」
@@ -22,6 +22,7 @@ import {
 import { type CSSProperties, useEffect, useState } from 'react';
 import { isDarkColor, segmentColor } from '../lib/constants';
 import { Amount } from './Amount';
+import { ChevronRightIcon } from './Icons';
 
 /** 占比達到這個百分比，就用大字版面（大號百分比＋名稱＋金額） */
 const BIG_BLOCK_PERCENT = 25;
@@ -76,9 +77,11 @@ export function BalanceColumns({ summary, onOpenGroup }: Props) {
   );
 
   return (
-    <section className="card columns" aria-labelledby="columns-title">
+    <section className="columns" aria-labelledby="columns-title">
       <div className="columns__head">
-        <h2 id="columns-title">資產與負債</h2>
+        <h2 id="columns-title" className="sr-only">
+          資產與負債
+        </h2>
         {negative ? (
           <span className="pill pill--warn">
             負債比資產多 <Amount value={-summary.netWorth} />
@@ -127,6 +130,65 @@ export function BalanceColumns({ summary, onOpenGroup }: Props) {
           </span>
         </div>
       )}
+
+      <Breakdown
+        title="資產"
+        total={summary.totalAssets}
+        segments={bars.assetRow.filter((s) => s.kind === 'asset')}
+        onOpen={onOpenGroup}
+      />
+      <Breakdown
+        title="負債"
+        total={summary.totalLiabilities}
+        segments={bars.liabilityRow.filter((s) => s.kind === 'liability')}
+        onOpen={onOpenGroup}
+      />
+    </section>
+  );
+}
+
+/** 圖下方的明細：每一段的顏色、名稱、金額與占比，點一下到首頁展開那個大類 */
+function Breakdown({
+  title,
+  total,
+  segments,
+  onOpen,
+}: {
+  title: string;
+  total: BalanceSummary['totalAssets'];
+  segments: BarSegment[];
+  onOpen: (group: CategoryGroup) => void;
+}) {
+  if (segments.length === 0) return null;
+  const sorted = [...segments].sort((a, b) => b.percent - a.percent);
+  return (
+    <section className="list-group breakdown">
+      <h3 className="list-group__label">{title}</h3>
+      <div className="list">
+        {sorted.map((s) => {
+          const group = groupOfSegment(s.key);
+          return (
+            <button
+              key={s.key}
+              type="button"
+              className="list-row list-row--button"
+              onClick={() => group && onOpen(group)}
+            >
+              <span className="swatch" style={{ background: segmentColor(s.key) }} />
+              <span className="list-row__main">
+                <span>{s.label}</span>
+                <span className="list-row__sub">
+                  佔{title} {Math.round(percentOf(s.value, total))}%
+                </span>
+              </span>
+              <Amount value={s.value} className="list-row__value" />
+              <span className="list-row__chevron">
+                <ChevronRightIcon size={16} />
+              </span>
+            </button>
+          );
+        })}
+      </div>
     </section>
   );
 }

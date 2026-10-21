@@ -2300,3 +2300,93 @@ textarea {
     transition: none;
   }
 }
+
+/* ---------- 趨勢｜結構面板：直接排在面板上，不再包卡片 ---------- */
+.trend {
+  margin: 0;
+  padding: 0;
+  gap: 16px;
+}
+
+.trend__head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.trend__label {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink-quiet);
+}
+
+.trend .trend__value {
+  font-size: 34px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+}
+
+.trend__change {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.trend__change--up,
+.stats--up {
+  color: var(--sage-700);
+}
+
+.trend__change--down,
+.stats--down {
+  color: var(--clay-700);
+}
+
+.segmented--four {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.stats {
+  margin: 4px 0 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.stats div {
+  padding: 12px 14px;
+  background: var(--glass);
+  border: 1px solid var(--glass-edge);
+  border-radius: 14px;
+}
+
+.stats dt {
+  font-size: 12px;
+  color: var(--ink-quiet);
+}
+
+.stats dd {
+  margin: 4px 0 0;
+  font-size: 18px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.columns {
+  margin: 0;
+  padding: 0;
+  border-radius: 0;
+  box-shadow: none;
+  gap: 16px;
+}
+
+.columns__head {
+  justify-content: flex-start;
+}
+
+.columns__chart {
+  height: min(380px, 48dvh);
+}
+
+.breakdown {
+  margin: 8px 0 0;
+}
