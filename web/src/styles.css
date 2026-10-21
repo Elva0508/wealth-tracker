@@ -1459,14 +1459,6 @@ textarea {
 .picker-group__list {
   border-top: none;
   border-radius: 0 0 14px 14px;
-  animation: picker-open 0.2s ease both;
-}
-
-@keyframes picker-open {
-  from {
-    opacity: 0;
-    transform: translateY(-6px);
-  }
 }
 
 .category-badge {
@@ -1519,8 +1511,7 @@ textarea {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .add-flow,
-  .picker-group__list {
+  .add-flow {
     animation: none;
   }
 }
@@ -1600,7 +1591,6 @@ textarea {
 .acc__body {
   display: flex;
   flex-direction: column;
-  gap: 8px;
   min-width: 0;
 }
 
@@ -1711,12 +1701,11 @@ textarea {
 
 .acc__list {
   margin: 0;
-  padding: 0;
+  padding: 8px 0 0;
   list-style: none;
   display: flex;
   flex-direction: column;
   gap: 8px;
-  animation: picker-open 0.2s ease both;
 }
 
 .acc-item {
@@ -1780,11 +1769,6 @@ textarea {
   color: color-mix(in srgb, var(--group-color) 55%, var(--ink));
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .acc__list {
-    animation: none;
-  }
-}
 
 /* ---------- 共用小元件 ---------- */
 .sr-only {
@@ -2185,8 +2169,8 @@ textarea {
 }
 
 .year__rows {
-  margin: 8px 0 0;
-  padding: 0;
+  margin: 0;
+  padding: 8px 0 0;
   list-style: none;
   display: flex;
   flex-direction: column;
@@ -2297,4 +2281,30 @@ textarea {
   margin: 0;
   font-size: 17px;
   font-weight: 700;
+}
+
+/* 手風琴展開區：用 grid 的 0fr → 1fr 做高度動畫，打開與收起都會播 */
+.collapse {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition:
+    grid-template-rows 0.28s cubic-bezier(0.32, 0.72, 0, 1),
+    opacity 0.2s ease;
+}
+
+.collapse--open {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+
+.collapse__inner {
+  min-height: 0;
+  overflow: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .collapse {
+    transition: none;
+  }
 }

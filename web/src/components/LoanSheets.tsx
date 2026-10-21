@@ -23,6 +23,7 @@ import * as api from '../lib/api';
 import { formatDate } from '../lib/constants';
 import { summarizeLoan } from '../lib/loanSummary';
 import { Amount } from './Amount';
+import { Collapse } from './Collapse';
 import { CheckIcon, ChevronRightIcon } from './Icons';
 import { type LoanRecordKind, LoanRecordForm, RECORD_TITLES } from './LoanRecordForm';
 import { describeMode } from './ModeFields';
@@ -608,7 +609,7 @@ function ScheduleByYear({ loan, rows, openEnded }: { loan: LoanView; rows: Sched
                 <span className="year__label">{year}</span>
                 <span className="year__count">共 {payments} 期</span>
               </button>
-              {expanded && (
+              <Collapse open={expanded}>
                 <ol className="year__rows">
                   {list.map(({ row, index }) => {
                     const past = row.date <= today;
@@ -646,7 +647,7 @@ function ScheduleByYear({ loan, rows, openEnded }: { loan: LoanView; rows: Sched
                     );
                   })}
                 </ol>
-              )}
+              </Collapse>
             </section>
           );
         })}

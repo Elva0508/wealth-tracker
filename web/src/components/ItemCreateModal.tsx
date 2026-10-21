@@ -17,6 +17,7 @@ import {
 } from '@core';
 import { type CSSProperties, useLayoutEffect, useRef, useState } from 'react';
 import { GROUP_COLORS, categoryColor, isDarkColor } from '../lib/constants';
+import { Collapse } from './Collapse';
 import { CategoryIcon, ChevronLeftIcon, ChevronRightIcon } from './Icons';
 import { ItemForm } from './ItemForm';
 import { LoanForm } from './LoanForm';
@@ -163,8 +164,8 @@ function GroupSection({
           <ChevronRightIcon size={18} />
         </span>
       </button>
-      {open && (
-        <div className="list picker-group__list" id={`picker-${group}`}>
+      <Collapse open={open} id={`picker-${group}`}>
+        <div className="list picker-group__list">
           {GROUP_CATEGORIES[group].map((c) => (
             <button key={c} type="button" className="list-row list-row--button" onClick={() => onPick(c)}>
               <CategoryBadge category={c} />
@@ -175,7 +176,7 @@ function GroupSection({
             </button>
           ))}
         </div>
-      )}
+      </Collapse>
     </section>
   );
 }

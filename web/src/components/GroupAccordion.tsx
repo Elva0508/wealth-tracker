@@ -20,6 +20,7 @@ import type { CSSProperties } from 'react';
 import { useAppData } from '../hooks/useAppData';
 import { GROUP_COLORS, formatMonthDay, isDarkColor } from '../lib/constants';
 import { Amount } from './Amount';
+import { Collapse } from './Collapse';
 import { ChevronRightIcon } from './Icons';
 import { CategoryBadge } from './ItemCreateModal';
 
@@ -120,15 +121,15 @@ function GroupSection({
           </span>
         </button>
 
-        {open && (
-          <ul className="acc__list" id={`acc-list-${group}`}>
+        <Collapse open={open} id={`acc-list-${group}`}>
+          <ul className="acc__list">
             {items.map((item) => (
               <li key={item.id}>
                 <ItemCard item={item} date={formatMonthDay(dateOf(item), today)} onOpen={() => onOpenItem(item.id)} />
               </li>
             ))}
           </ul>
-        )}
+        </Collapse>
       </div>
     </section>
   );
