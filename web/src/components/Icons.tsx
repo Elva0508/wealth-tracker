@@ -1,14 +1,10 @@
 /** 線條圖示。全部繼承文字顏色（currentColor），裝飾用途所以 aria-hidden */
-import type { Category } from "@core";
-import type { ReactNode } from "react";
+import type { Category } from '@core';
+import type { ReactNode } from 'react';
 
 type IconProps = { size?: number };
 
-function Svg({
-  size = 20,
-  children,
-  strokeWidth = 1.8,
-}: IconProps & { children: ReactNode; strokeWidth?: number }) {
+function Svg({ size = 20, children, strokeWidth = 1.8 }: IconProps & { children: ReactNode; strokeWidth?: number }) {
   return (
     <svg
       aria-hidden="true"
@@ -207,9 +203,6 @@ const CATEGORY_ICON_PATHS: Record<Category, ReactNode> = {
   ),
 };
 
-export const CategoryIcon = ({
-  category,
-  ...p
-}: IconProps & { category: Category }) => (
+export const CategoryIcon = ({ category, ...p }: IconProps & { category: Category }) => (
   <Svg {...p}>{CATEGORY_ICON_PATHS[category]}</Svg>
 );

@@ -18,10 +18,10 @@ import {
   isCategory,
   isCategoryGroup,
   percentOf,
-} from "@core";
-import { type CSSProperties, useEffect, useState } from "react";
-import { isDarkColor, segmentColor } from "../lib/constants";
-import { Amount } from "./Amount";
+} from '@core';
+import { type CSSProperties, useEffect, useState } from 'react';
+import { isDarkColor, segmentColor } from '../lib/constants';
+import { Amount } from './Amount';
 
 /** 占比達到這個百分比，就用大字版面（大號百分比＋名稱＋金額） */
 const BIG_BLOCK_PERCENT = 25;
@@ -47,12 +47,8 @@ export function BalanceColumns({ summary, onOpenGroup }: Props) {
 
   // 由上而下：虛線段在最上面，金額最大的分類在最底
   const order = (row: BarSegment[]) => {
-    const dashed = row.filter(
-      (s) => s.kind === "net_worth" || s.kind === "shortfall",
-    );
-    const solid = row
-      .filter((s) => s.kind === "asset" || s.kind === "liability")
-      .sort((a, b) => a.percent - b.percent);
+    const dashed = row.filter((s) => s.kind === 'net_worth' || s.kind === 'shortfall');
+    const solid = row.filter((s) => s.kind === 'asset' || s.kind === 'liability').sort((a, b) => a.percent - b.percent);
     return [...dashed, ...solid];
   };
   const assetColumn = order(bars.assetRow);
@@ -62,11 +58,7 @@ export function BalanceColumns({ summary, onOpenGroup }: Props) {
   const negative = summary.netWorth < 0n;
   const detailGroup = detail ? groupOfSegment(detail.key) : null;
 
-  const column = (
-    segments: BarSegment[],
-    label: string,
-    delayOffset: number,
-  ) => (
+  const column = (segments: BarSegment[], label: string, delayOffset: number) => (
     <div className="columns__col" role="group" aria-label={label}>
       {segments.map((s, i) => (
         <Block
@@ -92,11 +84,7 @@ export function BalanceColumns({ summary, onOpenGroup }: Props) {
             負債比資產多 <Amount value={-summary.netWorth} />
           </span>
         ) : (
-          bars.liabilityRatio !== null && (
-            <span className="pill">
-              負債佔資產 {Math.round(bars.liabilityRatio)}%
-            </span>
-          )
+          bars.liabilityRatio !== null && <span className="pill">負債佔資產 {Math.round(bars.liabilityRatio)}%</span>
         )}
       </div>
 
@@ -112,8 +100,8 @@ export function BalanceColumns({ summary, onOpenGroup }: Props) {
       </div>
 
       <div className="columns__chart">
-        {column(assetColumn, "資產", 0)}
-        {column(liabilityColumn, "負債與淨資產", 1)}
+        {column(assetColumn, '資產', 0)}
+        {column(liabilityColumn, '負債與淨資產', 1)}
       </div>
 
       {detail && (
@@ -165,24 +153,24 @@ function Block({
   const color = segmentColor(segment.key);
 
   const style: CSSProperties = {
-    height: grown ? `calc(${segment.percent.toFixed(2)}% - 3px)` : "0%",
+    height: grown ? `calc(${segment.percent.toFixed(2)}% - 3px)` : '0%',
     borderRadius: radius,
-    transitionDelay: grown ? `${delayMs}ms` : "0ms",
+    transitionDelay: grown ? `${delayMs}ms` : '0ms',
     backgroundColor: color,
-    color: isDarkColor(color) ? "#fff" : undefined,
+    color: isDarkColor(color) ? '#fff' : undefined,
   };
 
   return (
     <button
       type="button"
       className={[
-        "block",
+        'block',
         `block--${segment.kind}`,
-        big ? "block--big" : "block--small",
-        grown ? "block--grown" : "",
-        selected ? "block--selected" : "",
-        dimmed ? "block--dimmed" : "",
-      ].join(" ")}
+        big ? 'block--big' : 'block--small',
+        grown ? 'block--grown' : '',
+        selected ? 'block--selected' : '',
+        dimmed ? 'block--dimmed' : '',
+      ].join(' ')}
       style={style}
       aria-pressed={selected}
       aria-label={`${segment.label} ${pct}`}
@@ -205,21 +193,21 @@ function Block({
 }
 
 function blockRadius(index: number, count: number): string {
-  if (count === 1) return "16px";
-  if (index === 0) return "16px 16px 5px 5px";
-  if (index === count - 1) return "5px 5px 16px 16px";
-  return "5px";
+  if (count === 1) return '16px';
+  if (index === 0) return '16px 16px 5px 5px';
+  if (index === count - 1) return '5px 5px 16px 16px';
+  return '5px';
 }
 
 function detailNote(segment: BarSegment, summary: BalanceSummary): string {
-  if (segment.kind === "net_worth") return "資產扣掉負債後，真正屬於你的部分";
-  if (segment.kind === "shortfall") return "負債超過資產的部分";
-  if (segment.kind === "asset") {
+  if (segment.kind === 'net_worth') return '資產扣掉負債後，真正屬於你的部分';
+  if (segment.kind === 'shortfall') return '負債超過資產的部分';
+  if (segment.kind === 'asset') {
     return `佔總資產 ${Math.round(percentOf(segment.value, summary.totalAssets))}%`;
   }
   return summary.totalAssets > 0n
     ? `${segment.label}佔資產 ${Math.round(percentOf(segment.value, summary.totalAssets))}%`
-    : "目前沒有資產";
+    : '目前沒有資產';
 }
 
 /** 資產的段是大類、負債的段是分類；虛線段沒有對應的大類 */

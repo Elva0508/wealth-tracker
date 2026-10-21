@@ -12,42 +12,21 @@ import {
   fxStatusFor,
   latestFetchedAt,
   summarize,
-} from "@core";
-import { type ReactNode, useMemo, useState } from "react";
-import { useNavigate } from "react-router";
-import { Amount } from "../components/Amount";
-import { BalanceColumns } from "../components/BalanceColumns";
-import { CountUpAmount } from "../components/CountUpAmount";
-import {
-  ChevronRightIcon,
-  EyeIcon,
-  EyeOffIcon,
-  PlusIcon,
-} from "../components/Icons";
-import {
-  type CreateRequest,
-  ItemCreateModal,
-} from "../components/ItemCreateModal";
-import { NetWorthTrend } from "../components/NetWorthTrend";
-import { Page } from "../components/Page";
-import { useAppData } from "../hooks/useAppData";
-import {
-  GROUP_COLORS,
-  LIABILITY_COLORS,
-  formatDateTime,
-} from "../lib/constants";
+} from '@core';
+import { type ReactNode, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router';
+import { Amount } from '../components/Amount';
+import { BalanceColumns } from '../components/BalanceColumns';
+import { CountUpAmount } from '../components/CountUpAmount';
+import { ChevronRightIcon, EyeIcon, EyeOffIcon, PlusIcon } from '../components/Icons';
+import { type CreateRequest, ItemCreateModal } from '../components/ItemCreateModal';
+import { NetWorthTrend } from '../components/NetWorthTrend';
+import { Page } from '../components/Page';
+import { useAppData } from '../hooks/useAppData';
+import { GROUP_COLORS, LIABILITY_COLORS, formatDateTime } from '../lib/constants';
 
 export function OverviewPage() {
-  const {
-    items,
-    rates,
-    loading,
-    error,
-    hidden,
-    setHidden,
-    ratesRefreshing,
-    snapshots,
-  } = useAppData();
+  const { items, rates, loading, error, hidden, setHidden, ratesRefreshing, snapshots } = useAppData();
   const navigate = useNavigate();
   const [creating, setCreating] = useState<CreateRequest | null>(null);
 
@@ -58,7 +37,7 @@ export function OverviewPage() {
     new Date(),
   );
   const fetchedAt = latestFetchedAt(rates);
-  const hasForeign = summary.items.some((i) => i.currency !== "TWD");
+  const hasForeign = summary.items.some((i) => i.currency !== 'TWD');
 
   const openGroup = (group: CategoryGroup) => navigate(`/overview/${group}`);
 
@@ -82,9 +61,7 @@ export function OverviewPage() {
         <span className="swatch" style={{ background: color }} />
         <span className="list-row__main">
           <span>{label}</span>
-          <span className="list-row__sub">
-            {count === 0 ? "尚未新增" : `${count} 個項目`}
-          </span>
+          <span className="list-row__sub">{count === 0 ? '尚未新增' : `${count} 個項目`}</span>
         </span>
         {count === 0 ? (
           <span className="list-row__action">新增</span>
@@ -92,11 +69,7 @@ export function OverviewPage() {
           <Amount value={total.total} className="list-row__value" />
         )}
         <span className="list-row__chevron">
-          {count === 0 ? (
-            <PlusIcon size={16} />
-          ) : (
-            <ChevronRightIcon size={16} />
-          )}
+          {count === 0 ? <PlusIcon size={16} /> : <ChevronRightIcon size={16} />}
         </span>
       </button>
     );
@@ -119,7 +92,7 @@ export function OverviewPage() {
         <button
           type="button"
           className="icon-button"
-          aria-label={hidden ? "顯示金額" : "隱藏金額"}
+          aria-label={hidden ? '顯示金額' : '隱藏金額'}
           aria-pressed={!hidden}
           onClick={() => setHidden(!hidden)}
         >
@@ -139,7 +112,7 @@ export function OverviewPage() {
             <span className="hero__label">淨資產 · {summary.baseCurrency}</span>
             <CountUpAmount
               value={summary.netWorth}
-              className={`hero__value ${summary.netWorth < 0n ? "hero__value--negative" : ""}`}
+              className={`hero__value ${summary.netWorth < 0n ? 'hero__value--negative' : ''}`}
             />
             <FxNotice
               refreshing={ratesRefreshing}
@@ -150,24 +123,13 @@ export function OverviewPage() {
             />
           </header>
 
-          {summary.items.length > 0 && (
-            <NetWorthTrend
-              snapshots={snapshots}
-              liveNetWorth={summary.netWorth}
-            />
-          )}
+          {summary.items.length > 0 && <NetWorthTrend snapshots={snapshots} liveNetWorth={summary.netWorth} />}
 
           {summary.items.length === 0 ? (
             <div className="empty">
               <p>還沒有任何資產或負債。</p>
-              <p className="muted small">
-                先新增銀行存款、股票市值或貸款餘額，這裡就會算出你的淨資產。
-              </p>
-              <button
-                type="button"
-                className="btn btn--primary"
-                onClick={() => setCreating({})}
-              >
+              <p className="muted small">先新增銀行存款、股票市值或貸款餘額，這裡就會算出你的淨資產。</p>
+              <button type="button" className="btn btn--primary" onClick={() => setCreating({})}>
                 新增第一個項目
               </button>
             </div>
@@ -176,43 +138,26 @@ export function OverviewPage() {
           )}
 
           {section(
-            "overview-assets",
-            "資產",
+            'overview-assets',
+            '資產',
             ASSET_GROUPS.map((g) => {
-              return row(
-                g,
-                g,
-                GROUP_COLORS[g],
-                GROUP_LABELS[g],
-                summary.groups[g],
-                () => setCreating({ group: g }),
-              );
+              return row(g, g, GROUP_COLORS[g], GROUP_LABELS[g], summary.groups[g], () => setCreating({ group: g }));
             }),
           )}
           {/* 負債只有一個大類，這裡直接列出分類，顏色與平衡長條一致；點進去都是負債大類頁 */}
           {section(
-            "overview-liabilities",
-            "負債",
+            'overview-liabilities',
+            '負債',
             LIABILITY_CATEGORIES.map((c) => {
-              return row(
-                c,
-                "liability",
-                LIABILITY_COLORS[c],
-                CATEGORY_LABELS[c],
-                summary.categories[c],
-                () => setCreating({ category: c }),
+              return row(c, 'liability', LIABILITY_COLORS[c], CATEGORY_LABELS[c], summary.categories[c], () =>
+                setCreating({ category: c }),
               );
             }),
           )}
         </>
       )}
 
-      <button
-        type="button"
-        className="fab"
-        aria-label="新增項目"
-        onClick={() => setCreating({})}
-      >
+      <button type="button" className="fab" aria-label="新增項目" onClick={() => setCreating({})}>
         <PlusIcon size={24} />
       </button>
 
@@ -236,17 +181,15 @@ function FxNotice({
 }) {
   if (refreshing) return <p className="hero__meta">正在更新匯率…</p>;
   if (!hasForeign) return null;
-  const time = fetchedAt
-    ? `匯率更新於 ${formatDateTime(fetchedAt)}`
-    : "尚未取得匯率";
+  const time = fetchedAt ? `匯率更新於 ${formatDateTime(fetchedAt)}` : '尚未取得匯率';
   return (
     <div className="hero__meta">
       <span>{time}</span>
-      {status === "stale" && <span className="badge badge--warn">非最新</span>}
-      {status === "fallback" && <span className="badge">部分使用備援匯率</span>}
+      {status === 'stale' && <span className="badge badge--warn">非最新</span>}
+      {status === 'fallback' && <span className="badge">部分使用備援匯率</span>}
       {missing.length > 0 && (
         <p className="warning" role="status">
-          {missing.join("、")} 沒有匯率，相關項目暫不計入總額
+          {missing.join('、')} 沒有匯率，相關項目暫不計入總額
         </p>
       )}
     </div>
