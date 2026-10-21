@@ -1654,14 +1654,12 @@ textarea {
   font-weight: 700;
 }
 
-.acc__sub,
-.acc__date {
+.acc__sub {
   font-size: 13px;
   color: var(--ink-quiet);
 }
 
-.acc--open .acc__sub,
-.acc--open .acc__date {
+.acc--open .acc__sub {
   color: inherit;
   opacity: 0.8;
 }

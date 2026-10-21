@@ -1,6 +1,6 @@
 /**
  * 首頁的大類手風琴：只列出有項目的大類。
- * - 收合：大類名稱、項目數、總額、最後更新日
+ * - 收合：大類名稱、項目數、總額（更新日只顯示在各項目上）
  * - 展開：標題換成大類色底，下方直接列出這個大類的所有項目（不再分小類）
  * - 左側色條把同一個大類的標題與項目框在一起
  */
@@ -27,7 +27,6 @@ interface GroupView {
   group: CategoryGroup;
   items: ValuedItem[];
   total: Dec;
-  updated: string;
 }
 
 interface Props {
@@ -52,8 +51,7 @@ export function GroupAccordion({ items, totals, open, onToggle, onOpenItem }: Pr
     const list = items
       .filter((i) => order.includes(i.category))
       .sort((a, b) => order.indexOf(a.category) - order.indexOf(b.category));
-    const updated = list.reduce((latest, i) => (dateOf(i) > latest ? dateOf(i) : latest), '');
-    return { group, items: list, total: totals[group].total ?? ZERO, updated };
+    return { group, items: list, total: totals[group].total ?? ZERO };
   }).filter((g) => g.items.length > 0);
 
   return (
@@ -88,7 +86,7 @@ function GroupSection({
   onToggle: () => void;
   onOpenItem: (id: string) => void;
 }) {
-  const { group, items, total, updated } = view;
+  const { group, items, total } = view;
   const color = GROUP_COLORS[group];
   const liability = group === 'liability';
   const style = {
@@ -116,7 +114,6 @@ function GroupSection({
               {liability && <span className="acc__minus" aria-label="負債" />}
               <Amount value={total} />
             </span>
-            <span className="acc__date">{formatMonthDay(updated, today)} 更新</span>
           </span>
           <span className="acc__chevron" aria-hidden="true">
             <ChevronRightIcon size={18} />
