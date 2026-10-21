@@ -5,8 +5,6 @@
 import { Navigate, type RouteObject } from 'react-router';
 import { ComingSoonPage } from './pages/ComingSoonPage';
 import { ItemPage } from './pages/ItemPage';
-import { LoanPage } from './pages/LoanPage';
-import { LoanSchedulePage } from './pages/LoanSchedulePage';
 import { LoansPage } from './pages/LoansPage';
 import { OverviewPage } from './pages/OverviewPage';
 import { SettingsPage } from './pages/SettingsPage';
@@ -29,8 +27,6 @@ export const pageRoutes: RouteObject[] = [
     ),
   },
   { path: '/loans', element: <LoansPage /> },
-  { path: '/loans/:loanId', element: <LoanPage /> },
-  { path: '/loans/:loanId/schedule', element: <LoanSchedulePage /> },
   { path: '/settings', element: <SettingsPage /> },
   { path: '/settings/archived', element: <ArchivedPage /> },
   { path: '/settings/export', element: <ExportPage /> },

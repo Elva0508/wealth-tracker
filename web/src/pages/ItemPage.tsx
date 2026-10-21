@@ -1,13 +1,14 @@
 /**
  * 第二層：編輯單一項目。
- * 自動計算的貸款不能直接改金額，這裡只顯示摘要，並連到貸款管理；
+ * 自動計算的貸款不能直接改金額，這裡只顯示摘要，可打開貸款的編輯與還款試算表；
  * 手動輸入的貸款可以轉成自動計算。
  */
 import { useState } from 'react';
-import { useLocation, useNavigate, useParams } from 'react-router';
+import { useNavigate, useParams } from 'react-router';
 import { Amount } from '../components/Amount';
 import { ItemForm } from '../components/ItemForm';
 import { LoanForm } from '../components/LoanForm';
+import { LoanDetailSheet, RepaySheet } from '../components/LoanSheets';
 import { describeMode } from '../components/ModeFields';
 import { Page } from '../components/Page';
 import { Sheet } from '../components/Sheet';
@@ -15,15 +16,15 @@ import { useAppData } from '../hooks/useAppData';
 import * as api from '../lib/api';
 import { formatDate } from '../lib/constants';
 import { summarizeLoan } from '../lib/loanSummary';
-import { goBack, switchTab } from '../lib/navigation';
+import { goBack } from '../lib/navigation';
 
 export function ItemPage() {
   const { itemId } = useParams();
   const { items, loans, today, loading, reload } = useAppData();
   const navigate = useNavigate();
-  const location = useLocation();
   const [archiveError, setArchiveError] = useState<string | null>(null);
   const [converting, setConverting] = useState(false);
+  const [loanSheet, setLoanSheet] = useState<{ kind: 'detail' | 'repay'; loanId: string } | null>(null);
 
   const backHref = '/overview';
   const item = items.find((i) => i.id === itemId && i.status === 'active');
@@ -52,7 +53,7 @@ export function ItemPage() {
         <LoanItemSummary
           loan={loans.find((l) => l.itemId === item.id)}
           today={today}
-          onOpen={(loanId) => switchTab(navigate, '/loans', location.pathname, `/loans/${loanId}`)}
+          onOpen={(kind, loanId) => setLoanSheet({ kind, loanId })}
         />
       ) : (
         <ItemForm
@@ -79,6 +80,9 @@ export function ItemPage() {
         />
       )}
 
+      {loanSheet?.kind === 'detail' && <LoanDetailSheet loanId={loanSheet.loanId} onClose={() => setLoanSheet(null)} />}
+      {loanSheet?.kind === 'repay' && <RepaySheet loanId={loanSheet.loanId} onClose={() => setLoanSheet(null)} />}
+
       {converting && item && (
         <Sheet title="轉成自動計算" onClose={() => setConverting(false)}>
           {(close) => <LoanForm convert={item} onSaved={close} />}
@@ -95,7 +99,7 @@ function LoanItemSummary({
 }: {
   loan: ReturnType<typeof useAppData>['loans'][number] | undefined;
   today: string;
-  onOpen: (loanId: string) => void;
+  onOpen: (kind: 'detail' | 'repay', loanId: string) => void;
 }) {
   if (!loan) return <p className="page-message">讀取貸款資料中…</p>;
   const { current, balance, next } = summarizeLoan(loan, today);
@@ -125,11 +129,24 @@ function LoanItemSummary({
               )}
             </span>
           </div>
-          <button type="button" className="list-row list-row--button list-row--accent" onClick={() => onOpen(loan.id)}>
-            到貸款管理查看與修改
+          <button
+            type="button"
+            className="list-row list-row--button list-row--accent"
+            onClick={() => onOpen('repay', loan.id)}
+          >
+            還款試算表
+          </button>
+          <button
+            type="button"
+            className="list-row list-row--button list-row--accent"
+            onClick={() => onOpen('detail', loan.id)}
+          >
+            編輯與紀錄
           </button>
         </div>
-        <p className="list-group__note">這筆貸款的金額由還款表自動計算，利率、還款方式與提前還款都在貸款管理裡修改。</p>
+        <p className="list-group__note">
+          這筆貸款的金額由還款表自動計算；利率、還款方式與提前還款在「編輯與紀錄」或「還款試算表」修改。
+        </p>
       </section>
     </>
   );

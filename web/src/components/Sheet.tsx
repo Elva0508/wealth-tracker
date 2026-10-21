@@ -21,10 +21,18 @@ export function Sheet({
   title,
   onClose,
   children,
+  heading,
+  action,
+  cancelLabel = '取消',
 }: {
   title: string;
   onClose: () => void;
   children: (close: () => void) => ReactNode;
+  /** 取代置中的標題，例如分段按鈕；title 仍作為面板的無障礙名稱 */
+  heading?: ReactNode;
+  /** 標題列右側的按鈕，例如「確認還款」 */
+  action?: (close: () => void) => ReactNode;
+  cancelLabel?: string;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   const closingRef = useRef(false);
@@ -159,10 +167,19 @@ export function Sheet({
         <div className="sheet__grip" aria-hidden="true" />
         <div className="sheet__bar">
           <button type="button" className="text-button" onClick={closeDefault}>
-            取消
+            {cancelLabel}
           </button>
-          <h2 id="sheet-title">{title}</h2>
-          <span />
+          {heading ? (
+            <>
+              <h2 id="sheet-title" className="sr-only">
+                {title}
+              </h2>
+              {heading}
+            </>
+          ) : (
+            <h2 id="sheet-title">{title}</h2>
+          )}
+          <span className="sheet__action">{action?.(closeDefault)}</span>
         </div>
       </div>
       <div className="sheet__content">{children(closeDefault)}</div>

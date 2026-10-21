@@ -147,6 +147,11 @@ export async function updateItem(id: string, input: ValidItemInput): Promise<Ite
   return toItem(row as unknown as ItemRow);
 }
 
+/** 只改名稱與細項（貸款頁的編輯用；金額由還款表計算，不從這裡改） */
+export async function renameItem(id: string, name: string, subtype: string | null): Promise<void> {
+  check(await supabase.from('balance_items').update({ name, subtype }).eq('id', id));
+}
+
 export async function setArchived(id: string, archived: boolean): Promise<void> {
   check(
     await supabase

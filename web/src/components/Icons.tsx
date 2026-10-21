@@ -90,6 +90,14 @@ export const SettingsIcon = (p: IconProps) => (
   </Svg>
 );
 
+export const CalendarIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <rect x="3.5" y="5" width="17" height="15" rx="2.5" />
+    <path d="M3.5 9.5h17M8 3v4M16 3v4" />
+    <path d="M8 13h.01M12 13h.01M16 13h.01M8 16.5h.01M12 16.5h.01" strokeWidth={2.4} />
+  </Svg>
+);
+
 // ---------- 分類圖示（新增項目時的分類清單） ----------
 
 const CATEGORY_ICON_PATHS: Record<Category, ReactNode> = {
