@@ -1524,21 +1524,54 @@ textarea {
   min-width: 0;
 }
 
-.net-head__label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.net-head__label h1 {
+.net-head__title {
   font-size: 19px;
   font-weight: 700;
+}
+
+.net-head__title button {
+  margin-left: -6px;
+  padding: 4px 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  border-radius: 10px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.net-head__title button:active,
+.net-head__value:active {
+  background: rgb(70 58 36 / 0.06);
+}
+
+.net-head__title svg {
+  color: var(--ink-quiet);
 }
 
 .net-head__currency {
   font-size: 15px;
   font-weight: 600;
   color: var(--ink-muted);
+}
+
+.net-head__row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.net-head__value {
+  margin-left: -4px;
+  padding: 0 4px;
+  border: none;
+  border-radius: 12px;
+  background: none;
+  color: inherit;
+  cursor: pointer;
 }
 
 .net-head__eye {
@@ -1721,62 +1754,6 @@ textarea {
 .acc-item--liability .acc-item__amount,
 .acc--liability:not(.acc--open) .acc__total {
   color: var(--clay-700);
-}
-
-/* 淨資產數字＋迷你走勢線：整塊可點，打開趨勢與結構面板 */
-.net-head__open {
-  margin: 0 0 0 -4px;
-  padding: 2px 4px 4px;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 2px;
-  border: none;
-  border-radius: 12px;
-  background: none;
-  color: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.net-head__open:active {
-  background: rgb(70 58 36 / 0.06);
-}
-
-.net-head__hint {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--sage-700);
-}
-
-.sparkline {
-  overflow: visible;
-}
-
-.sparkline path {
-  fill: none;
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.sparkline--up path {
-  stroke: var(--sage-600);
-}
-
-.sparkline--down path {
-  stroke: var(--clay-600);
-}
-
-.sparkline--up circle {
-  fill: var(--sage-600);
-}
-
-.sparkline--down circle {
-  fill: var(--clay-600);
 }
 
 .fab-center.fab-center--sage {

@@ -1,5 +1,5 @@
 /**
- * 首頁：淨資產（點數字或走勢線打開「趨勢｜結構」面板）→ 大類手風琴（點項目進入編輯）。
+ * 首頁：淨資產（點標題的 › 或數字打開「趨勢｜結構」面板）→ 大類手風琴（點項目進入編輯）。
  * 新增一律從畫面中下方的 + 開始；所有數字由 @core 的 summarize() 計算。
  */
 import { type CategoryGroup, fxStatusFor, latestFetchedAt, summarize } from '@core';
@@ -13,7 +13,6 @@ import { type CreateRequest, ItemCreateModal } from '../components/ItemCreateMod
 import { NetWorthTrend } from '../components/NetWorthTrend';
 import { Page } from '../components/Page';
 import { Sheet } from '../components/Sheet';
-import { Sparkline } from '../components/Sparkline';
 import { useAppData } from '../hooks/useAppData';
 import { formatDateTime } from '../lib/constants';
 
@@ -38,7 +37,7 @@ function saveOpen(open: Set<CategoryGroup>) {
 }
 
 export function OverviewPage() {
-  const { items, rates, loading, error, hidden, setHidden, ratesRefreshing, snapshots, today } = useAppData();
+  const { items, rates, loading, error, hidden, setHidden, ratesRefreshing, snapshots } = useAppData();
   const navigate = useNavigate();
   const [creating, setCreating] = useState<CreateRequest | null>(null);
   const [open, setOpen] = useState(loadOpen);
@@ -55,6 +54,7 @@ export function OverviewPage() {
   const fetchedAt = latestFetchedAt(rates);
   const hasForeign = summary.items.some((i) => i.currency !== 'TWD');
   const ready = !loading && !error;
+  const canOpen = ready && summary.items.length > 0;
 
   const changeOpen = (update: (next: Set<CategoryGroup>) => void) =>
     setOpen((prev) => {
@@ -81,9 +81,37 @@ export function OverviewPage() {
       largeTitle
       heading={
         <div className="net-head">
-          <div className="net-head__label">
-            <h1>我的淨資產</h1>
-            <span className="net-head__currency">({summary.baseCurrency})</span>
+          {/* 標題後面的 › 表示可以點進去：打開「趨勢｜結構」面板；數字本身也可以點 */}
+          <h1 className="net-head__title">
+            {canOpen ? (
+              <button type="button" onClick={() => setAnalysis(true)}>
+                我的淨資產 <span className="net-head__currency">({summary.baseCurrency})</span>
+                <ChevronRightIcon size={22} />
+              </button>
+            ) : (
+              <>
+                我的淨資產 <span className="net-head__currency">({summary.baseCurrency})</span>
+              </>
+            )}
+          </h1>
+          <div className="net-head__row">
+            {!ready ? (
+              <span className="hero__value">—</span>
+            ) : canOpen ? (
+              <button
+                type="button"
+                className="net-head__value"
+                aria-label="查看淨資產趨勢與資產負債結構"
+                onClick={() => setAnalysis(true)}
+              >
+                <CountUpAmount
+                  value={summary.netWorth}
+                  className={`hero__value ${summary.netWorth < 0n ? 'hero__value--negative' : ''}`}
+                />
+              </button>
+            ) : (
+              <CountUpAmount value={summary.netWorth} className="hero__value" />
+            )}
             <button
               type="button"
               className="icon-button net-head__eye"
@@ -91,31 +119,9 @@ export function OverviewPage() {
               aria-pressed={!hidden}
               onClick={() => setHidden(!hidden)}
             >
-              {hidden ? <EyeOffIcon size={20} /> : <EyeIcon size={20} />}
+              {hidden ? <EyeOffIcon size={22} /> : <EyeIcon size={22} />}
             </button>
           </div>
-          {ready && summary.items.length > 0 ? (
-            <button
-              type="button"
-              className="net-head__open"
-              aria-label="查看淨資產趨勢與資產負債結構"
-              onClick={() => setAnalysis(true)}
-            >
-              <CountUpAmount
-                value={summary.netWorth}
-                className={`hero__value ${summary.netWorth < 0n ? 'hero__value--negative' : ''}`}
-              />
-              <span className="net-head__hint">
-                <Sparkline snapshots={snapshots} live={summary.netWorth} today={today} />
-                <span>趨勢與結構</span>
-                <ChevronRightIcon size={14} />
-              </span>
-            </button>
-          ) : ready ? (
-            <CountUpAmount value={summary.netWorth} className="hero__value" />
-          ) : (
-            <span className="hero__value">—</span>
-          )}
         </div>
       }
     >
