@@ -1953,9 +1953,10 @@ textarea {
 }
 
 .ticket__stub {
+  position: relative;
   flex: none;
   width: 100px;
-  margin: 8px 8px 8px 0;
+  margin: 8px 8px 8px 10px;
   padding: 12px 8px;
   display: flex;
   flex-direction: column;
@@ -1967,6 +1968,16 @@ textarea {
   background: var(--clay-100);
   color: var(--clay-700);
   cursor: pointer;
+}
+
+/* 左右兩塊之間的虛線，上下不碰到卡片邊緣 */
+.ticket__stub::before {
+  content: '';
+  position: absolute;
+  left: -11px;
+  top: 10px;
+  bottom: 10px;
+  border-left: 2px dashed rgb(154 90 61 / 0.3);
 }
 
 .ticket__stub small {
