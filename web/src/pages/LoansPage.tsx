@@ -182,7 +182,7 @@ function LoanCard({
         </span>
       </button>
 
-      {/* 票根：下一期扣款，點它打開還款試算表 */}
+      {/* 右邊方塊：下一期扣款，點它打開還款試算表 */}
       <button type="button" className="ticket__stub" onClick={onRepay} aria-label={`${loan.item.name}，還款試算表`}>
         {paidOff ? (
           <>
