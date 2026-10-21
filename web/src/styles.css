@@ -1545,24 +1545,6 @@ textarea {
   color: var(--ink-quiet);
 }
 
-.add-button {
-  flex: none;
-  width: 48px;
-  height: 48px;
-  border: none;
-  border-radius: 50%;
-  background: var(--sage-200);
-  color: var(--sage-800);
-  display: grid;
-  place-items: center;
-  cursor: pointer;
-  transition: transform 0.12s ease;
-}
-
-.add-button:active {
-  transform: scale(0.92);
-}
-
 .page-body > .hero__meta {
   margin: 0 4px 16px;
 }
@@ -1572,20 +1554,6 @@ textarea {
   flex-direction: column;
   gap: 12px;
   margin-bottom: 28px;
-}
-
-/* 左邊的色條貼齊螢幕邊緣，把同一個大類的標題與項目框在一起 */
-.acc {
-  display: grid;
-  grid-template-columns: 14px minmax(0, 1fr);
-  gap: 12px;
-  margin-left: -16px;
-}
-
-.acc__strip {
-  border-radius: 0 12px 12px 0;
-  background: var(--group-color);
-  opacity: 0.85;
 }
 
 .acc__body {
@@ -1657,34 +1625,10 @@ textarea {
 .acc__total {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
   font-size: 21px;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
-}
-
-/* 負債總額前面的減號圓點 */
-.acc__minus {
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: currentColor;
-  position: relative;
-}
-
-.acc__minus::after {
-  content: '';
-  position: absolute;
-  left: 5px;
-  right: 5px;
-  top: 9px;
-  height: 2px;
-  border-radius: 1px;
-  background: var(--surface);
-}
-
-.acc--open .acc__minus::after {
-  background: var(--group-color);
 }
 
 .acc__chevron {
@@ -1764,9 +1708,80 @@ textarea {
   font-variant-numeric: tabular-nums;
 }
 
-/* 資產金額用大類色（調深以維持對比），負債用一般文字色 */
+/* 資產金額用大類色（調深以維持對比）；負債前面加「−」並用負債色 */
 .acc-item--asset .acc-item__amount {
   color: color-mix(in srgb, var(--group-color) 55%, var(--ink));
+}
+
+.acc-item__amount {
+  display: flex;
+  gap: 4px;
+}
+
+.acc-item--liability .acc-item__amount,
+.acc--liability:not(.acc--open) .acc__total {
+  color: var(--clay-700);
+}
+
+/* 淨資產數字＋迷你走勢線：整塊可點，打開趨勢與結構面板 */
+.net-head__open {
+  margin: 0 0 0 -4px;
+  padding: 2px 4px 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  border: none;
+  border-radius: 12px;
+  background: none;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.net-head__open:active {
+  background: rgb(70 58 36 / 0.06);
+}
+
+.net-head__hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--sage-700);
+}
+
+.sparkline {
+  overflow: visible;
+}
+
+.sparkline path {
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.sparkline--up path {
+  stroke: var(--sage-600);
+}
+
+.sparkline--down path {
+  stroke: var(--clay-600);
+}
+
+.sparkline--up circle {
+  fill: var(--sage-600);
+}
+
+.sparkline--down circle {
+  fill: var(--clay-600);
+}
+
+.fab-center.fab-center--sage {
+  background: var(--sage-700);
+  box-shadow: 0 8px 20px rgb(59 86 64 / 0.3);
 }
 
 

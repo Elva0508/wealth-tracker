@@ -1,17 +1,19 @@
 /**
- * 首頁：淨資產 → 大類手風琴（點項目進入編輯）→ 淨資產趨勢 → 資產與負債長條。
- * 新增一律從右上角的 + 開始；所有數字由 @core 的 summarize() 計算。
+ * 首頁：淨資產（點數字或走勢線打開「趨勢｜結構」面板）→ 大類手風琴（點項目進入編輯）。
+ * 新增一律從畫面中下方的 + 開始；所有數字由 @core 的 summarize() 計算。
  */
 import { type CategoryGroup, fxStatusFor, latestFetchedAt, summarize } from '@core';
-import { useMemo, useState } from 'react';
+import { type ReactNode, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { BalanceColumns } from '../components/BalanceColumns';
 import { CountUpAmount } from '../components/CountUpAmount';
 import { GroupAccordion } from '../components/GroupAccordion';
-import { EyeIcon, EyeOffIcon, PlusIcon } from '../components/Icons';
+import { ChevronRightIcon, EyeIcon, EyeOffIcon, PlusIcon } from '../components/Icons';
 import { type CreateRequest, ItemCreateModal } from '../components/ItemCreateModal';
 import { NetWorthTrend } from '../components/NetWorthTrend';
 import { Page } from '../components/Page';
+import { Sheet } from '../components/Sheet';
+import { Sparkline } from '../components/Sparkline';
 import { useAppData } from '../hooks/useAppData';
 import { formatDateTime } from '../lib/constants';
 
@@ -36,10 +38,13 @@ function saveOpen(open: Set<CategoryGroup>) {
 }
 
 export function OverviewPage() {
-  const { items, rates, loading, error, hidden, setHidden, ratesRefreshing, snapshots } = useAppData();
+  const { items, rates, loading, error, hidden, setHidden, ratesRefreshing, snapshots, today } = useAppData();
   const navigate = useNavigate();
   const [creating, setCreating] = useState<CreateRequest | null>(null);
   const [open, setOpen] = useState(loadOpen);
+  const [analysis, setAnalysis] = useState(false);
+  // 在結構圖按「查看明細」：先讓面板滑下去，再展開那個大類
+  const revealAfterClose = useRef<CategoryGroup | null>(null);
 
   const summary = useMemo(() => summarize(items, rates), [items, rates]);
   const fxStatus = fxStatusFor(
@@ -89,20 +94,29 @@ export function OverviewPage() {
               {hidden ? <EyeOffIcon size={20} /> : <EyeIcon size={20} />}
             </button>
           </div>
-          {ready ? (
-            <CountUpAmount
-              value={summary.netWorth}
-              className={`hero__value ${summary.netWorth < 0n ? 'hero__value--negative' : ''}`}
-            />
+          {ready && summary.items.length > 0 ? (
+            <button
+              type="button"
+              className="net-head__open"
+              aria-label="查看淨資產趨勢與資產負債結構"
+              onClick={() => setAnalysis(true)}
+            >
+              <CountUpAmount
+                value={summary.netWorth}
+                className={`hero__value ${summary.netWorth < 0n ? 'hero__value--negative' : ''}`}
+              />
+              <span className="net-head__hint">
+                <Sparkline snapshots={snapshots} live={summary.netWorth} today={today} />
+                <span>趨勢與結構</span>
+                <ChevronRightIcon size={14} />
+              </span>
+            </button>
+          ) : ready ? (
+            <CountUpAmount value={summary.netWorth} className="hero__value" />
           ) : (
             <span className="hero__value">—</span>
           )}
         </div>
-      }
-      end={
-        <button type="button" className="add-button" aria-label="新增項目" onClick={() => setCreating({})}>
-          <PlusIcon size={24} />
-        </button>
       }
     >
       {loading ? (
@@ -124,7 +138,7 @@ export function OverviewPage() {
           {summary.items.length === 0 ? (
             <div className="empty">
               <p>還沒有任何資產或負債。</p>
-              <p className="muted small">按右上角的 + 新增銀行存款、股票市值或貸款餘額，這裡就會算出你的淨資產。</p>
+              <p className="muted small">按下方的 + 新增銀行存款、股票市值或貸款餘額，這裡就會算出你的淨資產。</p>
             </div>
           ) : (
             <>
@@ -135,15 +149,89 @@ export function OverviewPage() {
                 onToggle={toggle}
                 onOpenItem={(id) => navigate(`/overview/${id}`)}
               />
-              <NetWorthTrend snapshots={snapshots} liveNetWorth={summary.netWorth} />
-              <BalanceColumns summary={summary} onOpenGroup={revealGroup} />
             </>
           )}
         </>
       )}
 
+      {/* 留出中下方新增鍵的空間，滑到最底時最後一筆不會被擋住 */}
+      <div className="fab-spacer" aria-hidden="true" />
+      <button
+        type="button"
+        className="fab-center fab-center--sage"
+        aria-label="新增項目"
+        onClick={() => setCreating({})}
+      >
+        <PlusIcon size={28} />
+      </button>
+
       <ItemCreateModal request={creating} onClose={() => setCreating(null)} />
+
+      {analysis && (
+        <AnalysisSheet
+          onClose={() => {
+            setAnalysis(false);
+            const group = revealAfterClose.current;
+            revealAfterClose.current = null;
+            if (group) revealGroup(group);
+          }}
+          trend={<NetWorthTrend snapshots={snapshots} liveNetWorth={summary.netWorth} />}
+          structure={(close) => (
+            <BalanceColumns
+              summary={summary}
+              onOpenGroup={(group) => {
+                revealAfterClose.current = group;
+                close();
+              }}
+            />
+          )}
+        />
+      )}
     </Page>
+  );
+}
+
+/** 淨資產的「趨勢｜結構」滿版面板 */
+function AnalysisSheet({
+  onClose,
+  trend,
+  structure,
+}: {
+  onClose: () => void;
+  trend: ReactNode;
+  structure: (close: () => void) => ReactNode;
+}) {
+  const [tab, setTab] = useState<'trend' | 'structure'>('trend');
+  return (
+    <Sheet
+      title="淨資產分析"
+      cancelLabel="關閉"
+      onClose={onClose}
+      heading={
+        <div className="segmented sheet-tabs" role="tablist" aria-label="圖表">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab === 'trend'}
+            aria-pressed={tab === 'trend'}
+            onClick={() => setTab('trend')}
+          >
+            趨勢
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab === 'structure'}
+            aria-pressed={tab === 'structure'}
+            onClick={() => setTab('structure')}
+          >
+            結構
+          </button>
+        </div>
+      }
+    >
+      {(close) => (tab === 'trend' ? trend : structure(close))}
+    </Sheet>
   );
 }
 

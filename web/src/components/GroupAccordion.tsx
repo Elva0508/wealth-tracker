@@ -2,7 +2,7 @@
  * 首頁的大類手風琴：只列出有項目的大類。
  * - 收合：大類名稱、項目數、總額（更新日只顯示在各項目上）
  * - 展開：標題換成大類色底，下方直接列出這個大類的所有項目（不再分小類）
- * - 左側色條把同一個大類的標題與項目框在一起
+ * - 負債的金額前面加「−」並用負債色，一眼分出欠款
  */
 import {
   CATEGORY_GROUPS,
@@ -96,8 +96,11 @@ function GroupSection({
   } as CSSProperties;
 
   return (
-    <section id={`acc-${group}`} className={`acc ${open ? 'acc--open' : ''}`} style={style}>
-      <span className="acc__strip" aria-hidden="true" />
+    <section
+      id={`acc-${group}`}
+      className={`acc ${open ? 'acc--open' : ''} ${liability ? 'acc--liability' : ''}`}
+      style={style}
+    >
       <div className="acc__body">
         <button
           type="button"
@@ -112,7 +115,7 @@ function GroupSection({
           </span>
           <span className="acc__side">
             <span className="acc__total">
-              {liability && <span className="acc__minus" aria-label="負債" />}
+              {liability && total > ZERO && <span aria-hidden="true">−</span>}
               <Amount value={total} />
             </span>
           </span>
@@ -154,7 +157,12 @@ function ItemCard({ item, date, onOpen }: { item: ValuedItem; date: string; onOp
         </span>
       </span>
       <span className="acc-item__side">
-        <Amount value={item.amountBase} className="acc-item__amount" />
+        <span className="acc-item__amount">
+          {item.kind === 'liability' && item.amountBase !== null && item.amountBase > ZERO && (
+            <span aria-hidden="true">−</span>
+          )}
+          <Amount value={item.amountBase} />
+        </span>
         <span className="acc-item__date">{date}</span>
       </span>
     </button>
