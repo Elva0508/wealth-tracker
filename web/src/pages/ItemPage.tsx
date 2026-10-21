@@ -1,9 +1,8 @@
 /**
- * 第三層：編輯單一項目。
+ * 第二層：編輯單一項目。
  * 自動計算的貸款不能直接改金額，這裡只顯示摘要，並連到貸款管理；
  * 手動輸入的貸款可以轉成自動計算。
  */
-import { GROUP_LABELS, isCategoryGroup } from '@core';
 import { useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { Amount } from '../components/Amount';
@@ -19,17 +18,14 @@ import { summarizeLoan } from '../lib/loanSummary';
 import { goBack, switchTab } from '../lib/navigation';
 
 export function ItemPage() {
-  const { group, itemId } = useParams();
+  const { itemId } = useParams();
   const { items, loans, today, loading, reload } = useAppData();
   const navigate = useNavigate();
   const location = useLocation();
   const [archiveError, setArchiveError] = useState<string | null>(null);
   const [converting, setConverting] = useState(false);
 
-  const backHref = group && isCategoryGroup(group) ? `/overview/${group}` : '/overview';
-  // 名稱太長會擠到標題，超過四個字就只寫「返回」（iOS 也是這樣處理）
-  const groupLabel = group && isCategoryGroup(group) ? GROUP_LABELS[group] : '總覽';
-  const backText = groupLabel.length <= 4 ? groupLabel : '返回';
+  const backHref = '/overview';
   const item = items.find((i) => i.id === itemId && i.status === 'active');
 
   const leave = () => goBack(navigate, backHref);
@@ -47,7 +43,7 @@ export function ItemPage() {
   }
 
   return (
-    <Page title={item?.name ?? '項目'} backHref={backHref} backText={backText}>
+    <Page title={item?.name ?? '項目'} backHref={backHref} backText="總覽">
       {loading ? (
         <p className="page-message">載入中…</p>
       ) : !item ? (

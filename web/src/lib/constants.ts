@@ -74,3 +74,10 @@ export function formatDate(date: string, omitYearOf?: string): string {
   const md = `${Number(m)}/${Number(d)}`;
   return omitYearOf && omitYearOf.slice(0, 4) === y ? md : `${y}/${md}`;
 }
+
+/** 'YYYY-MM-DD' → '10月18日'；不是今年的話加上年份 → '2025年10月18日' */
+export function formatMonthDay(date: string, today: string): string {
+  const [y, m, d] = date.split('-');
+  const md = `${Number(m)}月${Number(d)}日`;
+  return y === today.slice(0, 4) ? md : `${y}年${md}`;
+}

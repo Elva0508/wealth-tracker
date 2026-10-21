@@ -17,10 +17,12 @@ interface Props {
   backText?: string;
   /** 標題右側的按鈕 */
   end?: ReactNode;
+  /** 大標題位置改放自訂內容（例如首頁的淨資產）；title 仍用於無障礙與分頁名稱 */
+  heading?: ReactNode;
   children: ReactNode;
 }
 
-export function Page({ title, largeTitle, backHref, backText, end, children }: Props) {
+export function Page({ title, largeTitle, backHref, backText, end, heading, children }: Props) {
   const navigate = useNavigate();
 
   const back = () => backHref && goBack(navigate, backHref);
@@ -31,7 +33,7 @@ export function Page({ title, largeTitle, backHref, backText, end, children }: P
         {/* 狀態列底下墊一層背景色，捲動的內容才不會和時間、電量疊在一起 */}
         <div className="status-bar-scrim" aria-hidden="true" />
         <header className="large-title">
-          <h1>{title}</h1>
+          {heading ?? <h1>{title}</h1>}
           {end && <div className="large-title__end">{end}</div>}
         </header>
         <div className="page-body page-body--large-title">{children}</div>

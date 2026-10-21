@@ -1,34 +1,45 @@
 /**
- * 首頁：淨資產 → 總資產／總負債 → 平衡長條 → 資產大類與負債分類（點進去看該大類的項目）。
- * 所有數字由 @core 的 summarize() 計算。
+ * 首頁：淨資產 → 大類手風琴（點項目進入編輯）→ 淨資產趨勢 → 資產與負債長條。
+ * 新增一律從右上角的 + 開始；所有數字由 @core 的 summarize() 計算。
  */
-import {
-  ASSET_GROUPS,
-  CATEGORY_LABELS,
-  type CategoryGroup,
-  type Dec,
-  GROUP_LABELS,
-  LIABILITY_CATEGORIES,
-  fxStatusFor,
-  latestFetchedAt,
-  summarize,
-} from '@core';
-import { type ReactNode, useMemo, useState } from 'react';
+import { type CategoryGroup, fxStatusFor, latestFetchedAt, summarize } from '@core';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { Amount } from '../components/Amount';
 import { BalanceColumns } from '../components/BalanceColumns';
 import { CountUpAmount } from '../components/CountUpAmount';
-import { ChevronRightIcon, EyeIcon, EyeOffIcon, PlusIcon } from '../components/Icons';
+import { GroupAccordion } from '../components/GroupAccordion';
+import { EyeIcon, EyeOffIcon, PlusIcon } from '../components/Icons';
 import { type CreateRequest, ItemCreateModal } from '../components/ItemCreateModal';
 import { NetWorthTrend } from '../components/NetWorthTrend';
 import { Page } from '../components/Page';
 import { useAppData } from '../hooks/useAppData';
-import { GROUP_COLORS, LIABILITY_COLORS, formatDateTime } from '../lib/constants';
+import { formatDateTime } from '../lib/constants';
+
+/** 展開中的大類只記在這台裝置，下次打開首頁維持原樣 */
+const OPEN_KEY = 'overview-open-groups';
+
+function loadOpen(): Set<CategoryGroup> {
+  try {
+    const saved = JSON.parse(localStorage.getItem(OPEN_KEY) ?? '[]');
+    return new Set(Array.isArray(saved) ? saved : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function saveOpen(open: Set<CategoryGroup>) {
+  try {
+    localStorage.setItem(OPEN_KEY, JSON.stringify([...open]));
+  } catch {
+    // 無痕模式等情況存不了，只是下次不會記得
+  }
+}
 
 export function OverviewPage() {
   const { items, rates, loading, error, hidden, setHidden, ratesRefreshing, snapshots } = useAppData();
   const navigate = useNavigate();
   const [creating, setCreating] = useState<CreateRequest | null>(null);
+  const [open, setOpen] = useState(loadOpen);
 
   const summary = useMemo(() => summarize(items, rates), [items, rates]);
   const fxStatus = fxStatusFor(
@@ -38,65 +49,59 @@ export function OverviewPage() {
   );
   const fetchedAt = latestFetchedAt(rates);
   const hasForeign = summary.items.some((i) => i.currency !== 'TWD');
+  const ready = !loading && !error;
 
-  const openGroup = (group: CategoryGroup) => navigate(`/overview/${group}`);
+  const changeOpen = (update: (next: Set<CategoryGroup>) => void) =>
+    setOpen((prev) => {
+      const next = new Set(prev);
+      update(next);
+      saveOpen(next);
+      return next;
+    });
 
-  /** 一列：有項目時點進大類頁，還沒有項目時直接打開新增 */
-  const row = (
-    key: string,
-    group: CategoryGroup,
-    color: string,
-    label: string,
-    total: { count: number; total: Dec },
-    onEmpty: () => void,
-  ) => {
-    const { count } = total;
-    return (
-      <button
-        key={key}
-        type="button"
-        className="list-row list-row--button"
-        onClick={count === 0 ? onEmpty : () => openGroup(group)}
-      >
-        <span className="swatch" style={{ background: color }} />
-        <span className="list-row__main">
-          <span>{label}</span>
-          <span className="list-row__sub">{count === 0 ? '尚未新增' : `${count} 個項目`}</span>
-        </span>
-        {count === 0 ? (
-          <span className="list-row__action">新增</span>
-        ) : (
-          <Amount value={total.total} className="list-row__value" />
-        )}
-        <span className="list-row__chevron">
-          {count === 0 ? <PlusIcon size={16} /> : <ChevronRightIcon size={16} />}
-        </span>
-      </button>
+  const toggle = (group: CategoryGroup) =>
+    changeOpen((next) => (next.has(group) ? next.delete(group) : next.add(group)));
+
+  // 長條圖的「查看明細」：展開那個大類並捲過去
+  const revealGroup = (group: CategoryGroup) => {
+    changeOpen((next) => next.add(group));
+    requestAnimationFrame(() =>
+      document.getElementById(`acc-${group}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
     );
   };
 
-  const section = (id: string, title: string, rows: ReactNode) => (
-    <section className="list-group" aria-labelledby={id}>
-      <h2 id={id} className="list-group__label">
-        {title}
-      </h2>
-      <div className="list">{rows}</div>
-    </section>
-  );
-
   return (
     <Page
-      title="資產總覽"
+      title="我的淨資產"
       largeTitle
+      heading={
+        <div className="net-head">
+          <div className="net-head__label">
+            <h1>我的淨資產</h1>
+            <span className="net-head__currency">({summary.baseCurrency})</span>
+            <button
+              type="button"
+              className="icon-button net-head__eye"
+              aria-label={hidden ? '顯示金額' : '隱藏金額'}
+              aria-pressed={!hidden}
+              onClick={() => setHidden(!hidden)}
+            >
+              {hidden ? <EyeOffIcon size={20} /> : <EyeIcon size={20} />}
+            </button>
+          </div>
+          {ready ? (
+            <CountUpAmount
+              value={summary.netWorth}
+              className={`hero__value ${summary.netWorth < 0n ? 'hero__value--negative' : ''}`}
+            />
+          ) : (
+            <span className="hero__value">—</span>
+          )}
+        </div>
+      }
       end={
-        <button
-          type="button"
-          className="icon-button"
-          aria-label={hidden ? '顯示金額' : '隱藏金額'}
-          aria-pressed={!hidden}
-          onClick={() => setHidden(!hidden)}
-        >
-          {hidden ? <EyeOffIcon size={22} /> : <EyeIcon size={22} />}
+        <button type="button" className="add-button" aria-label="新增項目" onClick={() => setCreating({})}>
+          <PlusIcon size={24} />
         </button>
       }
     >
@@ -108,58 +113,34 @@ export function OverviewPage() {
         </p>
       ) : (
         <>
-          <header className="hero">
-            <span className="hero__label">淨資產 · {summary.baseCurrency}</span>
-            <CountUpAmount
-              value={summary.netWorth}
-              className={`hero__value ${summary.netWorth < 0n ? 'hero__value--negative' : ''}`}
-            />
-            <FxNotice
-              refreshing={ratesRefreshing}
-              status={fxStatus}
-              fetchedAt={fetchedAt}
-              hasForeign={hasForeign}
-              missing={summary.missingCurrencies}
-            />
-          </header>
-
-          {summary.items.length > 0 && <NetWorthTrend snapshots={snapshots} liveNetWorth={summary.netWorth} />}
+          <FxNotice
+            refreshing={ratesRefreshing}
+            status={fxStatus}
+            fetchedAt={fetchedAt}
+            hasForeign={hasForeign}
+            missing={summary.missingCurrencies}
+          />
 
           {summary.items.length === 0 ? (
             <div className="empty">
               <p>還沒有任何資產或負債。</p>
-              <p className="muted small">先新增銀行存款、股票市值或貸款餘額，這裡就會算出你的淨資產。</p>
-              <button type="button" className="btn btn--primary" onClick={() => setCreating({})}>
-                新增第一個項目
-              </button>
+              <p className="muted small">按右上角的 + 新增銀行存款、股票市值或貸款餘額，這裡就會算出你的淨資產。</p>
             </div>
           ) : (
-            <BalanceColumns summary={summary} onOpenGroup={openGroup} />
-          )}
-
-          {section(
-            'overview-assets',
-            '資產',
-            ASSET_GROUPS.map((g) => {
-              return row(g, g, GROUP_COLORS[g], GROUP_LABELS[g], summary.groups[g], () => setCreating({ group: g }));
-            }),
-          )}
-          {/* 負債只有一個大類，這裡直接列出分類，顏色與平衡長條一致；點進去都是負債大類頁 */}
-          {section(
-            'overview-liabilities',
-            '負債',
-            LIABILITY_CATEGORIES.map((c) => {
-              return row(c, 'liability', LIABILITY_COLORS[c], CATEGORY_LABELS[c], summary.categories[c], () =>
-                setCreating({ category: c }),
-              );
-            }),
+            <>
+              <GroupAccordion
+                items={summary.items}
+                totals={summary.groups}
+                open={open}
+                onToggle={toggle}
+                onOpenItem={(id) => navigate(`/overview/${id}`)}
+              />
+              <NetWorthTrend snapshots={snapshots} liveNetWorth={summary.netWorth} />
+              <BalanceColumns summary={summary} onOpenGroup={revealGroup} />
+            </>
           )}
         </>
       )}
-
-      <button type="button" className="fab" aria-label="新增項目" onClick={() => setCreating({})}>
-        <PlusIcon size={24} />
-      </button>
 
       <ItemCreateModal request={creating} onClose={() => setCreating(null)} />
     </Page>

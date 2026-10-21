@@ -1,10 +1,9 @@
 /**
- * 所有頁面的路由表。網址的每一段就是一層：/overview/liquid/1 = 總覽 → 大類 → 項目。
+ * 所有頁面的路由表。網址的每一段就是一層：/overview/1 = 總覽 → 項目。
  * AppLayout 用這張表把目前頁面和它的每一層上層頁面都渲染出來（iOS 的頁面堆疊）。
  */
 import { Navigate, type RouteObject } from 'react-router';
 import { ComingSoonPage } from './pages/ComingSoonPage';
-import { GroupPage } from './pages/GroupPage';
 import { ItemPage } from './pages/ItemPage';
 import { LoanPage } from './pages/LoanPage';
 import { LoanSchedulePage } from './pages/LoanSchedulePage';
@@ -18,8 +17,7 @@ import { ExportPage } from './pages/settings/ExportPage';
 export const pageRoutes: RouteObject[] = [
   { path: '/', element: <Navigate to="/overview" replace /> },
   { path: '/overview', element: <OverviewPage /> },
-  { path: '/overview/:group', element: <GroupPage /> },
-  { path: '/overview/:group/:itemId', element: <ItemPage /> },
+  { path: '/overview/:itemId', element: <ItemPage /> },
   {
     path: '/investments',
     element: (

@@ -428,30 +428,6 @@ textarea {
   pointer-events: none;
 }
 
-/* 浮動新增鍵在導覽列上方 */
-.fab {
-  position: fixed;
-  right: max(20px, env(safe-area-inset-right));
-  bottom: calc(var(--tabbar-height) + var(--tabbar-gap) + 20px);
-  z-index: 31;
-  width: 56px;
-  height: 56px;
-  border: none;
-  border-radius: 50%;
-  background: var(--sage-700);
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 8px 20px rgb(59 86 64 / 0.3);
-  cursor: pointer;
-  transition: transform 0.12s ease;
-}
-
-.fab:active {
-  transform: scale(0.92);
-}
-
 .task-notice {
   margin: 0 0 20px;
   padding: 12px 16px;
@@ -1624,6 +1600,269 @@ textarea {
 @media (prefers-reduced-motion: reduce) {
   .add-flow,
   .picker-group__list {
+    animation: none;
+  }
+}
+
+/* ---------- 首頁：淨資產標題與大類手風琴 ---------- */
+.net-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.net-head__label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.net-head__label h1 {
+  font-size: 19px;
+  font-weight: 700;
+}
+
+.net-head__currency {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink-muted);
+}
+
+.net-head__eye {
+  color: var(--ink-quiet);
+}
+
+.add-button {
+  flex: none;
+  width: 48px;
+  height: 48px;
+  border: none;
+  border-radius: 50%;
+  background: var(--sage-200);
+  color: var(--sage-800);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: transform 0.12s ease;
+}
+
+.add-button:active {
+  transform: scale(0.92);
+}
+
+.page-body > .hero__meta {
+  margin: 0 4px 16px;
+}
+
+.accordion {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 28px;
+}
+
+/* 左邊的色條貼齊螢幕邊緣，把同一個大類的標題與項目框在一起 */
+.acc {
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr);
+  gap: 12px;
+  margin-left: -16px;
+}
+
+.acc__strip {
+  border-radius: 0 12px 12px 0;
+  background: var(--group-color);
+  opacity: 0.85;
+}
+
+.acc__body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.acc__head {
+  width: 100%;
+  min-height: 76px;
+  padding: 14px 12px 14px 18px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--glass-edge);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
+}
+
+.acc__head:active {
+  filter: brightness(0.96);
+}
+
+.acc--open .acc__head {
+  min-height: 60px;
+  border-color: transparent;
+  background: var(--group-color);
+  color: var(--group-ink);
+}
+
+.acc__title,
+.acc__side {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.acc__title {
+  flex: 1;
+  min-width: 0;
+}
+
+.acc__side {
+  align-items: flex-end;
+}
+
+.acc__name {
+  font-size: 19px;
+  font-weight: 700;
+}
+
+.acc__sub,
+.acc__date {
+  font-size: 13px;
+  color: var(--ink-quiet);
+}
+
+.acc--open .acc__sub,
+.acc--open .acc__date {
+  color: inherit;
+  opacity: 0.8;
+}
+
+.acc__total {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 21px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 負債總額前面的減號圓點 */
+.acc__minus {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: currentColor;
+  position: relative;
+}
+
+.acc__minus::after {
+  content: '';
+  position: absolute;
+  left: 5px;
+  right: 5px;
+  top: 9px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--surface);
+}
+
+.acc--open .acc__minus::after {
+  background: var(--group-color);
+}
+
+.acc__chevron {
+  display: flex;
+  color: var(--ink-faint);
+  transition: transform 0.2s ease;
+}
+
+.acc--open .acc__chevron {
+  color: inherit;
+  opacity: 0.7;
+  transform: rotate(90deg);
+}
+
+.acc__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  animation: picker-open 0.2s ease both;
+}
+
+.acc-item {
+  width: 100%;
+  min-height: 68px;
+  padding: 12px 16px 12px 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid var(--glass-edge);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.acc-item:active {
+  filter: brightness(0.96);
+}
+
+.acc-item__main,
+.acc-item__side {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.acc-item__main {
+  flex: 1;
+}
+
+.acc-item__side {
+  align-items: flex-end;
+  flex: none;
+}
+
+.acc-item__name {
+  font-size: 16px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.acc-item__sub,
+.acc-item__date {
+  font-size: 13px;
+  color: var(--ink-quiet);
+}
+
+.acc-item__amount {
+  font-size: 18px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 資產金額用大類色（調深以維持對比），負債用一般文字色 */
+.acc-item--asset .acc-item__amount {
+  color: color-mix(in srgb, var(--group-color) 55%, var(--ink));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .acc__list {
     animation: none;
   }
 }
