@@ -7,7 +7,7 @@
 import { type Dec, ZERO, dec, percentOf, summarize } from '@core';
 import { useMemo, useState } from 'react';
 import { Amount } from '../components/Amount';
-import { CategoryIcon, CheckIcon, PlusIcon } from '../components/Icons';
+import { CategoryIcon, PlusIcon } from '../components/Icons';
 import { LoanForm } from '../components/LoanForm';
 import { LoanDetailSheet, RepaySheet } from '../components/LoanSheets';
 import { describeMode } from '../components/ModeFields';
@@ -184,15 +184,15 @@ function LoanCard({
 
       {/* 右邊方塊：下一期扣款，點它打開還款試算表 */}
       <button type="button" className="ticket__stub" onClick={onRepay} aria-label={`${loan.item.name}，還款試算表`}>
+        {/* 上方一律是「下期扣款」，中間是日期或狀態，下方是金額或「查看」 */}
+        <small>下期扣款</small>
         {paidOff ? (
           <>
-            <small>已還清</small>
-            <CheckIcon size={30} />
-            <span>還款紀錄 ›</span>
+            <b className="ticket__stub-text">已還清</b>
+            <span>查看 ›</span>
           </>
         ) : next ? (
           <>
-            <small>下期扣款</small>
             <b>{formatDate(next.date, today)}</b>
             <span>
               <Amount value={next.payment} currency={foreign} /> ›
@@ -200,8 +200,7 @@ function LoanCard({
           </>
         ) : (
           <>
-            <small>{current?.mode === 'defer_all' ? '緩繳中' : '還款'}</small>
-            <b className="ticket__stub-text">試算表</b>
+            <b className="ticket__stub-text">{current?.mode === 'defer_all' ? '緩繳中' : '無'}</b>
             <span>查看 ›</span>
           </>
         )}
@@ -222,9 +221,9 @@ function ManualCard({ item, onConvert }: { item: api.Item; onConvert: () => void
         </span>
       </button>
       <button type="button" className="ticket__stub" onClick={onConvert}>
-        <small>手動輸入</small>
-        <b className="ticket__stub-text">轉自動</b>
-        <span>計算 ›</span>
+        <small>下期扣款</small>
+        <b className="ticket__stub-text">未設定</b>
+        <span>轉自動計算 ›</span>
       </button>
     </article>
   );
