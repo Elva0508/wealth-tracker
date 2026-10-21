@@ -1970,13 +1970,13 @@ textarea {
   cursor: pointer;
 }
 
-/* 左右兩塊之間的虛線，上下不碰到卡片邊緣 */
+/* 左右兩塊之間的虛線，從卡片頂端到底端 */
 .ticket__stub::before {
   content: '';
   position: absolute;
   left: -11px;
-  top: 10px;
-  bottom: 10px;
+  top: -9px;
+  bottom: -9px;
   border-left: 2px dashed rgb(154 90 61 / 0.3);
 }
 
