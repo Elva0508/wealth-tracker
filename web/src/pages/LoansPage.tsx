@@ -7,7 +7,7 @@
 import { type Dec, ZERO, dec, percentOf, summarize } from '@core';
 import { useMemo, useState } from 'react';
 import { Amount } from '../components/Amount';
-import { CalendarIcon, CategoryIcon, ChevronRightIcon, PlusIcon } from '../components/Icons';
+import { CategoryIcon, CheckIcon, PlusIcon } from '../components/Icons';
 import { LoanForm } from '../components/LoanForm';
 import { LoanDetailSheet, RepaySheet } from '../components/LoanSheets';
 import { describeMode } from '../components/ModeFields';
@@ -154,76 +154,90 @@ function LoanCard({
   onOpen: () => void;
   onRepay: () => void;
 }) {
-  const { current, balance, next, schedule } = summary;
+  const { current, balance, next, schedule, openEnded } = summary;
   const foreign = loan.currency !== 'TWD' ? loan.currency : undefined;
-  const lastPaid = schedule.rows.filter((r) => r.type === 'payment' && r.date <= today).at(-1);
+  const principal = dec(loan.principal);
   const paidOff = schedule.paidOffAt !== null && schedule.paidOffAt <= today;
-
-  const status = paidOff
-    ? `已於 ${formatDate(schedule.paidOffAt!)} 還清`
-    : [
-        current?.mode === 'defer_all'
-          ? '緩繳中・不用繳款'
-          : lastPaid
-            ? `上次 ${formatDate(lastPaid.date, today)} 已扣款`
-            : '尚未還款',
-        next && `下次 ${formatDate(next.date)}`,
-      ]
-        .filter(Boolean)
-        .join('・');
+  // 已還比例：起算本金扣掉剩餘本金；校正餘額後可能超出範圍，限制在 0～100
+  const paidPercent = principal > ZERO ? Math.min(100, Math.max(0, percentOf(principal - balance, principal))) : 0;
 
   return (
-    <article className="card debt-card">
-      {/* 整張卡片可點；還款區塊是獨立的按鈕，點它不會打開編輯 */}
-      <button type="button" className="debt-card__open" aria-label={`${loan.item.name}，編輯與紀錄`} onClick={onOpen} />
-      <div className="debt-card__head">
-        <span className="debt-card__title">
-          <strong>{loan.item.name}</strong>
-          <span className="muted small">{current ? describeMode(current) : '—'}</span>
-        </span>
+    <article className="card ticket">
+      <button type="button" className="ticket__main" onClick={onOpen}>
+        <span className="ticket__name">{loan.item.name}</span>
+        <span className="muted small">{current ? describeMode(current) : '—'}</span>
         <NegativeAmount value={balance} currency={foreign} />
-      </div>
-      <button type="button" className="repay-block" onClick={onRepay}>
-        <CalendarIcon size={22} />
-        <span className="repay-block__text">
-          <strong>還款</strong>
-          <span>{status}</span>
+        <span className="progress" aria-hidden="true">
+          <span style={{ width: `${paidPercent}%` }} />
         </span>
-        <ChevronRightIcon size={18} />
+        <span className="ticket__meta">
+          <span>已還 {Math.floor(paidPercent)}%</span>
+          <span>
+            {paidOff
+              ? `${formatDate(schedule.paidOffAt!)} 已還清`
+              : openEnded
+                ? '目前沒有到期日'
+                : schedule.paidOffAt && `預計 ${yearMonth(schedule.paidOffAt)} 還清`}
+          </span>
+        </span>
       </button>
-      <p className="debt-card__foot">
-        <CalendarIcon size={16} />
-        每月 {Number(loan.firstPaymentDate.slice(8, 10))} 日為還款日
-      </p>
+
+      {/* 票根：下一期扣款，點它打開還款試算表 */}
+      <button type="button" className="ticket__stub" onClick={onRepay} aria-label={`${loan.item.name}，還款試算表`}>
+        {paidOff ? (
+          <>
+            <small>已還清</small>
+            <CheckIcon size={30} />
+            <span>還款紀錄 ›</span>
+          </>
+        ) : next ? (
+          <>
+            <small>下期扣款</small>
+            <b>{formatDate(next.date, today)}</b>
+            <span>
+              <Amount value={next.payment} currency={foreign} /> ›
+            </span>
+          </>
+        ) : (
+          <>
+            <small>{current?.mode === 'defer_all' ? '緩繳中' : '還款'}</small>
+            <b className="ticket__stub-text">試算表</b>
+            <span>查看 ›</span>
+          </>
+        )}
+      </button>
     </article>
   );
 }
 
 function ManualCard({ item, onConvert }: { item: api.Item; onConvert: () => void }) {
   return (
-    <article className="card debt-card">
-      <div className="debt-card__head">
-        <span className="debt-card__title">
-          <strong>{item.name}</strong>
-          <span className="muted small">手動輸入餘額</span>
-        </span>
+    <article className="card ticket">
+      <button type="button" className="ticket__main" onClick={onConvert}>
+        <span className="ticket__name">{item.name}</span>
+        <span className="muted small">手動輸入餘額</span>
         <NegativeAmount value={dec(item.amount)} currency={item.currency !== 'TWD' ? item.currency : undefined} />
-      </div>
-      <button type="button" className="repay-block" onClick={onConvert}>
-        <CalendarIcon size={22} />
-        <span className="repay-block__text">
-          <strong>轉成自動計算還款</strong>
+        <span className="ticket__meta">
           <span>填入利率與期數，每月扣款後餘額自動減少</span>
         </span>
-        <ChevronRightIcon size={18} />
+      </button>
+      <button type="button" className="ticket__stub" onClick={onConvert}>
+        <small>手動輸入</small>
+        <b className="ticket__stub-text">轉自動</b>
+        <span>計算 ›</span>
       </button>
     </article>
   );
 }
 
+/** '2054-02-10' → '2054/2' */
+function yearMonth(date: string) {
+  return `${date.slice(0, 4)}/${Number(date.slice(5, 7))}`;
+}
+
 function NegativeAmount({ value, currency }: { value: Dec; currency?: string }) {
   return (
-    <span className="debt-card__amount">
+    <span className="ticket__amount">
       {value > ZERO && '− '}
       <Amount value={value} currency={currency} />
     </span>
