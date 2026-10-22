@@ -1,10 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
   type Loan,
+  type LoanInput,
   type ModeChange,
   annuityPayment,
   buildSchedule,
   dec,
+  firstPaymentDateFor,
+  periodsUntil,
+  previewLoan,
   loanBalanceOn,
   nextPayment,
   parseRateInput,
@@ -186,18 +190,19 @@ describe('按日計息與餘額查詢', () => {
 });
 
 describe('表單檢查', () => {
-  const base = {
+  const base: LoanInput = {
+    stage: 'new',
     name: '房貸',
+    mode: 'annuity',
     startDate: '2026-01-15',
     principal: '1,000,000',
-    firstPaymentDate: '2026-02-15',
+    endDate: '2046-01-15',
     annualRate: '2.185%',
-    mode: 'annuity' as const,
-    termMonths: '240',
+    graceMonths: '',
     interestEvery: 1,
   };
 
-  it('正常輸入：金額去掉千分位、利率去掉 %', () => {
+  it('正常輸入：金額去掉千分位、利率去掉 %，到期日換算成期數', () => {
     const r = validateLoanInput(base);
     expect(r.ok && r.value.principal).toBe('1000000');
     expect(r.ok && r.value.annualRate).toBe('2.185');
@@ -207,12 +212,43 @@ describe('表單檢查', () => {
       termMonths: 240,
       interestEvery: null,
     });
+    expect(r.ok && r.value.afterGrace).toBe(null);
   });
 
-  it('第一次扣款日不能早於起算日、期數必須是整數、本金不能是 0', () => {
-    const r = validateLoanInput({ ...base, firstPaymentDate: '2026-01-10', termMonths: '12.5', principal: '0' });
+  it('到期日不能早於第一次扣款、本金不能是 0', () => {
+    const r = validateLoanInput({ ...base, endDate: '2025-12-01', principal: '0' });
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(Object.keys(r.errors).sort()).toEqual(['firstPaymentDate', 'principal', 'termMonths']);
+    if (!r.ok) expect(Object.keys(r.errors).sort()).toEqual(['endDate', 'principal']);
+    const r2 = validateLoanInput({ ...base, endDate: '2026-02-01' });
+    expect(!r2.ok && r2.errors.endDate).toBe('到期日要在第一次扣款日當天或之後');
+  });
+
+  it('第一次扣款日是起算日的下個月同一天', () => {
+    const r = validateLoanInput(base);
+    expect(r.ok && r.value.firstPaymentDate).toBe('2026-02-15');
+  });
+
+  it('寬限期拆成兩段：前 36 期每月只繳息，第 37 期起用剩下的 204 期攤還', () => {
+    const r = validateLoanInput({ ...base, graceMonths: '36' });
+    expect(r.ok && r.value.mode).toEqual({
+      effectiveDate: '2026-01-15',
+      mode: 'interest_only',
+      termMonths: null,
+      interestEvery: 1,
+    });
+    expect(r.ok && r.value.afterGrace).toEqual({
+      effectiveDate: '2029-02-15',
+      mode: 'annuity',
+      termMonths: 204,
+      interestEvery: null,
+    });
+    expect(validateLoanInput({ ...base, graceMonths: '240' }).ok).toBe(false);
+  });
+
+  it('緩繳本息不用填到期日，寬限期不適用', () => {
+    const r = validateLoanInput({ ...base, mode: 'defer_all', endDate: '', graceMonths: '12' });
+    expect(r.ok && r.value.mode.mode).toBe('defer_all');
+    expect(r.ok && r.value.afterGrace).toBe(null);
   });
 
   it('緩繳本息不需要期數；只繳息要選繳息頻率', () => {
@@ -228,6 +264,102 @@ describe('表單檢查', () => {
     expect(r.ok && r.value.interestEvery).toBe(12);
     expect(parseRateInput('101').ok).toBe(false);
     expect(parseRateInput('1.77500')).toEqual({ ok: true, value: '1.775' });
+  });
+});
+
+describe('新增貸款的推算', () => {
+  it('第一次扣款日：下個月同一天', () => {
+    expect(firstPaymentDateFor('2026-07-16')).toBe('2026-08-16');
+    expect(firstPaymentDateFor('2026-12-05')).toBe('2027-01-05');
+  });
+
+  it('到期日換算期數：數到到期日當天（含）為止的扣款日', () => {
+    expect(periodsUntil('2026-04-05', '2046-03-20')).toBe(240);
+    expect(periodsUntil('2026-04-20', '2046-03-20')).toBe(240);
+    expect(periodsUntil('2026-04-25', '2046-03-20')).toBe(239);
+    expect(periodsUntil('2026-04-05', '2026-04-05')).toBe(1);
+    expect(periodsUntil('2026-04-05', '2026-04-04')).toBe(0);
+  });
+
+  const input: LoanInput = {
+    stage: 'new',
+    name: '房貸',
+    mode: 'annuity',
+    startDate: '2026-01-15',
+    principal: '1000000',
+    endDate: '2046-01-15',
+    annualRate: '2',
+    graceMonths: '',
+    interestEvery: 1,
+  };
+  const valid = (extra: Partial<LoanInput> = {}) => {
+    const r = validateLoanInput({ ...input, ...extra });
+    if (!r.ok) throw new Error(JSON.stringify(r.errors));
+    return r.value;
+  };
+
+  it('試算和還款表一致：100 萬、2%、20 年每月 5,059 元', () => {
+    const p = previewLoan(valid(), 'TWD');
+    expect(twd(p.regularPayment!)).toBe('5059');
+    expect(p.first!.date).toBe('2026-02-15');
+    expect(p.last!.date).toBe('2046-01-15');
+    expect(p.gracePayment).toBe(null);
+  });
+
+  it('寬限期 36 期：每月只繳息 1,667 元，之後 204 期本金攤還，到期日不變', () => {
+    const value = valid({ graceMonths: '36' });
+    const p = previewLoan(value, 'TWD');
+    expect(twd(p.gracePayment!)).toBe('1667');
+    expect(twd(p.regularPayment!)).toBe(twd(annuityPayment(dec('1000000'), dec('2'), 204)));
+    expect(p.last!.date).toBe('2046-01-15');
+    const rows = payments({
+      currency: 'TWD',
+      startDate: value.startDate,
+      principal: value.principal,
+      firstPaymentDate: value.firstPaymentDate,
+      rateChanges: [{ effectiveDate: value.startDate, annualRate: value.annualRate }],
+      modeChanges: [value.mode, value.afterGrace!],
+      adjustments: [],
+    });
+    expect(rows).toHaveLength(240);
+    expect(rows[35]).toMatchObject({ mode: 'interest_only', date: '2029-01-15' });
+    expect(twd(rows[35].principal)).toBe('0');
+    expect(rows[36]).toMatchObject({ mode: 'annuity', date: '2029-02-15', period: 1, periodsInMode: 204 });
+    expect(twd(rows.at(-1)!.balance)).toBe('0');
+  });
+
+  it('7/16 撥款、2026/07/16–2036/07/16：第一期 8/16，共 120 期，最後一期 2036/07/16', () => {
+    const value = valid({ startDate: '2026-07-16', endDate: '2036-07-16' });
+    expect(value.firstPaymentDate).toBe('2026-08-16');
+    expect(value.periods).toBe(120);
+    const p = previewLoan(value, 'TWD');
+    expect(p.first!.date).toBe('2026-08-16');
+    expect(twd(p.first!.interest)).toBe('1667'); // 整月計息：1,000,000 × 2% ÷ 12
+    expect(p.last!.date).toBe('2036-07-16');
+  });
+
+  it('還款表引擎：撥款日和扣款日不同天時，第一期按實際天數計息，之後整月計息', () => {
+    const rows = payments({
+      ...loan(),
+      startDate: '2026-03-20',
+      firstPaymentDate: '2026-04-05',
+    });
+    expect(twd(rows[0].interest)).toBe('877'); // 1,000,000 × 2% × 16 ÷ 365 = 876.71
+    expect(twd(rows[1].interest)).toBe(twd((rows[0].balance * 2n) / 1200n)); // 期初本金 × 2% ÷ 12
+  });
+
+  it('已經在繳：從剩餘本金的日期往後算，期數由到期日決定', () => {
+    const value = valid({
+      stage: 'ongoing',
+      startDate: '2026-10-15',
+      principal: '850000',
+      endDate: '2046-01-15',
+    });
+    expect(value.periods).toBe(231);
+    const p = previewLoan(value, 'TWD');
+    expect(p.first!.date).toBe('2026-11-15');
+    expect(twd(p.first!.interest)).toBe('1417'); // 850,000 × 2% ÷ 12
+    expect(p.last!.date).toBe('2046-01-15');
   });
 });
 

@@ -225,8 +225,7 @@ function addMonths(date, months, day) {
   return `${year}-${String(month).padStart(2, "0")}-${String(Math.min(day, lastDay)).padStart(2, "0")}`;
 }
 function dueDate(loan, k) {
-  const day = Number(loan.firstPaymentDate.slice(8, 10));
-  return addMonths(loan.firstPaymentDate, k, day);
+  return paymentDateAt(loan.firstPaymentDate, k);
 }
 function monthlyInterest(balance, ratePercent) {
   return roundDiv(balance * ratePercent, RATE_DENOMINATOR);
@@ -351,7 +350,7 @@ function buildSchedule(loan, until) {
       applyAdjustmentsBefore(due, true);
       continue;
     }
-    const fullMonth = addMonths(accrualFrom, 1, Number(due.slice(8, 10))) === due;
+    const fullMonth = k > 0 && accrualFrom === dueDate(loan, k - 1) || addMonths(accrualFrom, 1, Number(accrualFrom.slice(8, 10))) === due;
     const accrued = fullMonth ? monthlyInterest(openingBalance, rate) : dailyInterest(openingBalance, rate, daysBetween(accrualFrom, due));
     periodInMode += 1;
     const term = current.termMonths ?? 0;
@@ -434,6 +433,9 @@ function withLoanBalances(items, loans, date) {
     const loan = byItem.get(item.id);
     return loan ? { ...item, amount: toFixedString(loanBalanceOn(loan, date), 4) } : item;
   });
+}
+function paymentDateAt(firstPaymentDate, k) {
+  return addMonths(firstPaymentDate, k, Number(firstPaymentDate.slice(8, 10)));
 }
 
 // supabase/functions/_shared/auth.ts

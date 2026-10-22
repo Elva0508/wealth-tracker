@@ -237,6 +237,9 @@ export async function createLoan(
       p_item_id: options.itemId ?? null,
       p_sort_order: options.sortOrder ?? 0,
       p_subtype: options.subtype ?? null,
+      p_next_date: input.afterGrace?.effectiveDate ?? null,
+      p_next_mode: input.afterGrace?.mode ?? null,
+      p_next_term_months: input.afterGrace?.termMonths ?? null,
     }),
   ) as string;
 }

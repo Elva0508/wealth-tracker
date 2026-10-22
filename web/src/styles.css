@@ -646,6 +646,10 @@ textarea {
   color: var(--ink-quiet);
 }
 
+.list-group__note--warn {
+  color: var(--warn);
+}
+
 .list {
   margin: 0;
   padding: 0;

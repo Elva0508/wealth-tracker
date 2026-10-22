@@ -54,7 +54,7 @@ wealth-tracker/
    supabase link --project-ref <你的 project ref>
    supabase db push       # 套用 migrations/
    ```
-   不想用 CLI 的話，也可以把 `supabase/migrations/` 裡的 SQL 檔依檔名順序（`v1a_init` → `v1b_loans` → `categories`）整份貼到後台 SQL Editor 執行。
+   不想用 CLI 的話，也可以把 `supabase/migrations/` 裡的 SQL 檔依檔名順序（`v1a_init` → `v1b_loans` → `categories` → `v1b_loan_grace`）整份貼到後台 SQL Editor 執行。
 
 ### 2. 設定登入
 
@@ -92,7 +92,7 @@ supabase functions deploy daily-snapshot --no-verify-jwt
 
 ### 只用瀏覽器設定 Supabase（不安裝 CLI）
 
-1. **建立資料表**：後台 → SQL Editor → New query，把 `supabase/migrations/20261019000000_v1a_init.sql` 整份貼上 → Run；再用同樣的方式依序執行 `20261021000000_v1b_loans.sql`、`20261022000000_categories.sql`。
+1. **建立資料表**：後台 → SQL Editor → New query，把 `supabase/migrations/20261019000000_v1a_init.sql` 整份貼上 → Run；再用同樣的方式依序執行 `20261021000000_v1b_loans.sql`、`20261022000000_categories.sql`、`20261023000000_v1b_loan_grace.sql`。
 2. **設定登入網址**：同上方第 2 步。
 3. **設定密鑰**：後台 → Edge Functions → Secrets，新增 `CRON_SECRET`，值是一串夠長的亂碼（至少 32 個英數字）。
 4. **部署 Edge Functions**：後台 → Edge Functions → Deploy a new function → Via Editor：
@@ -174,10 +174,17 @@ Redirect URLs：新增 https://你的名稱.pages.dev/\*\*
 1. **資料庫**：`supabase db push`，或在後台 SQL Editor 執行 `supabase/migrations/20261022000000_categories.sql`。
 2. **每日快照**：重新部署 `daily-snapshot`（同上）。資料庫轉換後舊版函式認不得新分類，兩步要一起做。
 
+## 升級到新的新增貸款流程（寬限期）
+
+新增貸款改成先選「全新貸款／已經在繳」，期數由到期日推算，第一次扣款是起日的下個月同一天；有寬限期時會同時記錄「只繳息」與之後的攤還。
+
+1. **資料庫**：`supabase db push`，或在後台 SQL Editor 執行 `supabase/migrations/20261023000000_v1b_loan_grace.sql`（要在 `categories` 之後）。
+2. **每日快照**：重新部署 `daily-snapshot`（同上）。第一期不滿一個月時改成按日計息，快照的餘額要用同一套算法。
+
 ## 測試
 
 ```bash
-npm test          # 共用計算模組的 75 個測試
+npm test          # 共用計算模組的 85 個測試
 npm run typecheck # 前端型別檢查
 ```
 
@@ -192,8 +199,10 @@ psql -d wt_test -v ON_ERROR_STOP=1 \
   -f supabase/migrations/20261021000000_v1b_loans.sql \
   -f supabase/tests/v1b_loans.sql \
   -f supabase/migrations/20261022000000_categories.sql \
-  -f supabase/tests/categories.sql
-# 應顯示 ALL SQL TESTS PASSED、ALL V1B SQL TESTS PASSED 與 ALL CATEGORY SQL TESTS PASSED
+  -f supabase/tests/categories.sql \
+  -f supabase/migrations/20261023000000_v1b_loan_grace.sql \
+  -f supabase/tests/loan_grace.sql
+# 應顯示 ALL SQL TESTS PASSED、ALL V1B SQL TESTS PASSED、ALL CATEGORY SQL TESTS PASSED 與 ALL LOAN GRACE SQL TESTS PASSED
 # （每個測試檔用的是當時的分類，所以 migration 與測試要照這個順序交錯執行）
 ```
 

@@ -18,6 +18,7 @@
  * - 本金平均攤還：每期本金相同，利息逐期減少
  * - 到期一次還本：每月繳息，最後一期還清本金
  * - 提前還款與校正餘額：發生在兩次扣款之間時，當期利息仍以期初本金計算
+ * - 寬限期含在貸款年限內：前 N 期每月只繳息，第 N + 1 期起用剩下的期數攤還（例如 20 年含寬限 3 年 = 36 期只繳息 + 204 期攤還）
  * - 金額四捨五入到元（新台幣）或分（外幣）；最後一期把剩下的零頭一次還清
  */
 import { type Dec, ONE, ZERO, dec, roundDiv, round, toFixedString } from './decimal.ts';
@@ -129,8 +130,7 @@ function addMonths(date: string, months: number, day: number): string {
 
 /** 第 k 次扣款日（k 從 0 開始） */
 function dueDate(loan: Loan, k: number): string {
-  const day = Number(loan.firstPaymentDate.slice(8, 10));
-  return addMonths(loan.firstPaymentDate, k, day);
+  return paymentDateAt(loan.firstPaymentDate, k);
 }
 
 // ---------- 利息與每期金額 ----------
@@ -304,7 +304,11 @@ export function buildSchedule(loan: Loan, until: string): Schedule {
       continue;
     }
 
-    const fullMonth = addMonths(accrualFrom, 1, Number(due.slice(8, 10))) === due;
+    // 整月：從上一個扣款日算起，或起算日剛好是一個月前的同一天（例如 3/20 撥款、4/20 扣款）；
+    // 其他情況（例如 3/20 撥款、4/5 扣款）按日計息
+    const fullMonth =
+      (k > 0 && accrualFrom === dueDate(loan, k - 1)) ||
+      addMonths(accrualFrom, 1, Number(accrualFrom.slice(8, 10))) === due;
     const accrued = fullMonth
       ? monthlyInterest(openingBalance, rate)
       : dailyInterest(openingBalance, rate, daysBetween(accrualFrom, due));
@@ -520,12 +524,53 @@ export function validateModeInput(
   return { ok: true, value: { effectiveDate: input.effectiveDate, mode: input.mode, termMonths, interestEvery } };
 }
 
-export interface LoanInput extends Omit<ModeInput, 'effectiveDate'> {
+// ---------- 新增貸款 ----------
+
+/** new = 全新貸款（撥款日與原始貸款金額）；ongoing = 已經在繳（某天的剩餘本金） */
+export type LoanStage = 'new' | 'ongoing';
+
+/** 寬限期只用在會攤還本金的還款方式 */
+export function modeHasGrace(mode: RepaymentMode): boolean {
+  return mode === 'annuity' || mode === 'equal_principal';
+}
+
+/** 第 k 次扣款日（k 從 0 開始），每月固定在第一次扣款日的同一天 */
+export function paymentDateAt(firstPaymentDate: string, k: number): string {
+  return addMonths(firstPaymentDate, k, Number(firstPaymentDate.slice(8, 10)));
+}
+
+/**
+ * 新增貸款時的第一次扣款日：起算日的下個月同一天（7/16 撥款 → 8/16 第一期）。
+ * 已經在繳的貸款，起算日是最近一次扣款日，所以下一期也是下個月同一天。
+ */
+export function firstPaymentDateFor(startDate: string): string {
+  return addMonths(startDate, 1, Number(startDate.slice(8, 10)));
+}
+
+/** 從第一次扣款日到到期日（含）共有幾期 */
+export function periodsUntil(firstPaymentDate: string, endDate: string): number {
+  if (endDate < firstPaymentDate) return 0;
+  const [fy, fm] = firstPaymentDate.split('-').map(Number);
+  const [ey, em] = endDate.split('-').map(Number);
+  let months = (ey - fy) * 12 + (em - fm);
+  if (paymentDateAt(firstPaymentDate, months) > endDate) months -= 1;
+  return months + 1;
+}
+
+export interface LoanInput {
+  stage: LoanStage;
   name: string;
+  mode: RepaymentMode;
+  /** 全新：撥款日；已經在繳：最近一次扣款日（剩餘本金是這天扣款後的數字）。之後每月同一天扣款 */
   startDate: string;
+  /** 全新：原始貸款金額；已經在繳：剩餘本金 */
   principal: string;
-  firstPaymentDate: string;
+  /** 到期日（最後一期扣款日）；緩繳本息、只繳息不用填 */
+  endDate: string;
   annualRate: string;
+  /** 全新：寬限期幾個月；已經在繳：寬限期還剩幾期。沒有就空白 */
+  graceMonths: string;
+  interestEvery: number;
 }
 
 export type LoanInputErrors = Partial<Record<keyof LoanInput, string>>;
@@ -536,10 +581,15 @@ export interface ValidLoanInput {
   principal: string;
   firstPaymentDate: string;
   annualRate: string;
+  /** 起算時的還款方式；有寬限期時是每月只繳息 */
   mode: ModeChange;
+  /** 寬限期結束後改用的還款方式；沒有寬限期為 null */
+  afterGrace: ModeChange | null;
+  /** 有到期日的還款方式：總共要繳幾期（含寬限期） */
+  periods: number | null;
 }
 
-/** 新增貸款的表單檢查 */
+/** 新增貸款的檢查：到期日換算成期數，寬限期拆成「只繳息」與「攤還」兩段 */
 export function validateLoanInput(
   input: LoanInput,
 ): { ok: true; value: ValidLoanInput } | { ok: false; errors: LoanInputErrors } {
@@ -547,34 +597,129 @@ export function validateLoanInput(
   const name = input.name.trim();
   if (name.length === 0) errors.name = '請輸入名稱';
   else if (name.length > 60) errors.name = '名稱最多 60 字';
-  if (!isIsoDate(input.startDate)) errors.startDate = '請選擇日期';
-  if (!isIsoDate(input.firstPaymentDate)) errors.firstPaymentDate = '請選擇日期';
-  else if (isIsoDate(input.startDate) && input.firstPaymentDate <= input.startDate) {
-    errors.firstPaymentDate = '第一次扣款日要在起算日之後';
-  }
+  if (!(REPAYMENT_MODES as readonly string[]).includes(input.mode)) errors.mode = '請選擇還款方式';
+
+  const startOk = isIsoDate(input.startDate);
+  if (!startOk) errors.startDate = '請選擇日期';
+
   const principal = parseAmountInput(input.principal);
   if (!principal.ok) errors.principal = principal.error;
-  else if (dec(principal.value) === ZERO) errors.principal = '本金要大於 0';
+  else if (dec(principal.value) === ZERO) errors.principal = '金額要大於 0';
+
   const rate = parseRateInput(input.annualRate);
   if (!rate.ok) errors.annualRate = rate.error;
-  const mode = validateModeInput({ ...input, effectiveDate: input.startDate });
-  if (!mode.ok)
-    Object.assign(errors, {
-      mode: mode.errors.mode,
-      termMonths: mode.errors.termMonths,
-      interestEvery: mode.errors.interestEvery,
-    });
-  for (const key of Object.keys(errors) as (keyof LoanInputErrors)[]) if (!errors[key]) delete errors[key];
-  if (Object.keys(errors).length > 0 || !principal.ok || !rate.ok || !mode.ok) return { ok: false, errors };
+
+  const firstPaymentDate = startOk ? firstPaymentDateFor(input.startDate) : '';
+
+  let periods: number | null = null;
+  if (modeHasTerm(input.mode)) {
+    if (!isIsoDate(input.endDate)) errors.endDate = '請選擇到期日';
+    else if (startOk) {
+      periods = periodsUntil(firstPaymentDate, input.endDate);
+      if (periods < 1) errors.endDate = '到期日要在第一次扣款日當天或之後';
+      else if (periods > MAX_PERIODS) errors.endDate = `最多 ${MAX_PERIODS} 期（50 年）`;
+    }
+  }
+
+  let grace = 0;
+  if (modeHasGrace(input.mode) && input.graceMonths.trim() !== '') {
+    grace = Number(input.graceMonths.trim());
+    if (!Number.isInteger(grace) || grace < 0) errors.graceMonths = '請輸入整數，沒有寬限期就空白';
+    else if (periods !== null && grace >= periods) errors.graceMonths = `寬限期要少於總期數 ${periods} 期`;
+  }
+
+  const interestEvery = input.mode === 'interest_only' ? input.interestEvery : null;
+  if (interestEvery !== null && ![1, 3, 6, 12].includes(interestEvery)) errors.interestEvery = '請選擇繳息頻率';
+
+  if (Object.keys(errors).length > 0 || !principal.ok || !rate.ok) return { ok: false, errors };
+
+  const termMonths = modeHasTerm(input.mode) ? periods : null;
+  const mode: ModeChange =
+    grace > 0
+      ? { effectiveDate: input.startDate, mode: 'interest_only', termMonths: null, interestEvery: 1 }
+      : { effectiveDate: input.startDate, mode: input.mode, termMonths, interestEvery };
+  // 第 grace + 1 期起攤還：還款方式從生效日當天或之後的第一個扣款日起適用
+  const afterGrace: ModeChange | null =
+    grace > 0
+      ? {
+          effectiveDate: paymentDateAt(firstPaymentDate, grace),
+          mode: input.mode,
+          termMonths: (periods ?? 0) - grace,
+          interestEvery: null,
+        }
+      : null;
+
   return {
     ok: true,
     value: {
       name,
       startDate: input.startDate,
       principal: principal.value,
-      firstPaymentDate: input.firstPaymentDate,
+      firstPaymentDate,
       annualRate: rate.value,
-      mode: mode.value,
+      mode,
+      afterGrace,
+      periods,
     },
+  };
+}
+
+export interface LoanPreview {
+  /** 第一次扣款（緩繳本息時為 null） */
+  first: ScheduleRow | null;
+  /** 最後一期；沒有到期日的還款方式為 null */
+  last: ScheduleRow | null;
+  /** 寬限期每期利息（整月） */
+  gracePayment: Dec | null;
+  /** 攤還期間的每期金額：本息平均攤還、到期一次還本是固定金額；本金平均攤還是第一個整月 */
+  regularPayment: Dec | null;
+  /** 整份還款表的利息合計；沒有到期日的還款方式為 null */
+  totalInterest: Dec | null;
+}
+
+/** 出現最多次的金額（第一期按日計息、最後一期還清零頭都不會是它） */
+function mostCommon(rows: ScheduleRow[]): Dec | null {
+  const counts = new Map<Dec, number>();
+  for (const r of rows) counts.set(r.payment, (counts.get(r.payment) ?? 0) + 1);
+  let best: Dec | null = null;
+  let bestCount = 0;
+  for (const [payment, count] of counts) {
+    if (count > bestCount) [best, bestCount] = [payment, count];
+  }
+  return best;
+}
+
+/** 新增貸款畫面的試算：用同一套還款表算出第一期、每期金額與最後一期 */
+export function previewLoan(input: ValidLoanInput, currency: string): LoanPreview {
+  const loan: Loan = {
+    currency,
+    startDate: input.startDate,
+    principal: input.principal,
+    firstPaymentDate: input.firstPaymentDate,
+    rateChanges: [{ effectiveDate: input.startDate, annualRate: input.annualRate }],
+    modeChanges: input.afterGrace ? [input.mode, input.afterGrace] : [input.mode],
+    adjustments: [],
+  };
+  const finalMode = (input.afterGrace ?? input.mode).mode;
+  const hasEnd = modeHasTerm(finalMode);
+  // 沒有到期日的還款方式只看第一年
+  const until = hasEnd ? paymentDateAt(input.firstPaymentDate, MAX_PERIODS) : paymentDateAt(input.firstPaymentDate, 12);
+  const rows = buildSchedule(loan, until).rows.filter((r) => r.type === 'payment');
+
+  const graceRows = input.afterGrace ? rows.filter((r) => r.mode === 'interest_only') : [];
+  const mainRows = rows.filter((r) => r.mode === finalMode);
+  let regularPayment: Dec | null = null;
+  if (finalMode === 'equal_principal') {
+    regularPayment = (mainRows.length > 1 && !input.afterGrace ? mainRows[1] : mainRows[0])?.payment ?? null;
+  } else if (finalMode !== 'defer_all') {
+    regularPayment = mostCommon(mainRows.length > 1 ? mainRows.slice(0, -1) : mainRows);
+  }
+
+  return {
+    first: rows[0] ?? null,
+    last: hasEnd ? (rows.at(-1) ?? null) : null,
+    gracePayment: graceRows.length > 0 ? mostCommon(graceRows) : null,
+    regularPayment,
+    totalInterest: hasEnd ? rows.reduce((sum, r) => sum + r.interest, ZERO) : null,
   };
 }

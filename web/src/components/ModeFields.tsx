@@ -23,12 +23,15 @@ export function ModeFields({
   interestEvery,
   onChange,
   errors,
+  withTerm = true,
 }: {
   mode: RepaymentMode;
   termMonths: string;
   interestEvery: number;
   onChange: (next: { mode?: RepaymentMode; termMonths?: string; interestEvery?: number }) => void;
   errors: { mode?: string; termMonths?: string; interestEvery?: string };
+  /** 新增貸款時期數由到期日推算，不顯示期數欄位 */
+  withTerm?: boolean;
 }) {
   return (
     <>
@@ -58,7 +61,7 @@ export function ModeFields({
         {errors.mode && <p className="field__error">{errors.mode}</p>}
       </fieldset>
 
-      {modeHasTerm(mode) && (
+      {withTerm && modeHasTerm(mode) && (
         <div className="list-group">
           <div className="list">
             <label className="list-row list-row--field">
